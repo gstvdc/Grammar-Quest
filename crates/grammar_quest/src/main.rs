@@ -29,8 +29,17 @@ async fn main() {
                     }
                 });
             egui::CentralPanel::default().show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    ui.heading("Grammar Maze");
+                    ui.separator();
+                    ui.label(
+                        egui::RichText::new("LABORATÓRIO DE DERIVAÇÃO")
+                            .color(egui::Color32::from_rgb(238, 166, 255)),
+                    );
+                });
+                ui.separator();
                 ui.vertical_centered(|ui| {
-                    ui.add_space(100.0);
+                    ui.add_space(72.0);
                     ui::side_panel::show_result(ui, state.result.as_ref());
                 });
             });

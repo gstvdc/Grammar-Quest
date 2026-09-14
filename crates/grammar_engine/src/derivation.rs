@@ -20,47 +20,96 @@ pub struct Derivation {
     pub sentence: String,
 }
 
+#[derive(Debug, Clone)]
+pub struct DerivationState {
+    pub stack: Stack,
+    pub output: String,
+    pub steps: Vec<DerivationStep>,
+}
+
+impl DerivationState {
+    pub fn new(grammar: &Grammar) -> Self {
+        let mut stack = Stack::new();
+        stack.push_production(&[Symbol::NonTerminal(grammar.start.clone())]);
+        Self {
+            stack,
+            output: String::new(),
+            steps: Vec::new(),
+        }
+    }
+
+    pub fn current_non_terminal(&self) -> Option<String> {
+        match self.stack.peek()? {
+            Symbol::NonTerminal(name) => Some(name.clone()),
+            Symbol::Terminal(_) => None,
+        }
+    }
+
+    pub fn consume_terminals(&mut self) {
+        while let Some(Symbol::Terminal(_)) = self.stack.peek() {
+            if let Some(Symbol::Terminal(c)) = self.stack.pop() {
+                self.output.push(c);
+            }
+        }
+    }
+
+    pub fn apply_choice(&mut self, grammar: &Grammar, choice: usize) -> Result<(), GrammarError> {
+        self.consume_terminals();
+        let Symbol::NonTerminal(name) = self.stack.pop().ok_or(GrammarError::DerivationTooLong)?
+        else {
+            return Ok(());
+        };
+        let alternatives = grammar
+            .alternatives(&name)
+            .ok_or_else(|| GrammarError::UndefinedNonTerminal(name.clone()))?;
+        let production = alternatives
+            .get(choice)
+            .cloned()
+            .ok_or_else(|| GrammarError::ParseError("escolha de produção inválida".to_string()))?;
+        self.stack.push_production(&production);
+        self.steps.push(DerivationStep {
+            non_terminal: name,
+            production,
+            stack_after: self.stack.snapshot_top_first(),
+            output_so_far: self.output.clone(),
+        });
+        self.consume_terminals();
+        Ok(())
+    }
+
+    pub fn is_complete(&self) -> bool {
+        self.stack.is_empty()
+    }
+}
+
 /// Implements the professor's algorithm exactly: pick a production for the
 /// current non-terminal, push it (leftmost symbol on top), then while the
 /// stack isn't empty pop — terminals go to the output, non-terminals get
 /// expanded again from step one.
 pub fn derive_random(grammar: &Grammar) -> Result<Derivation, GrammarError> {
     let mut rng = rand::thread_rng();
-    let mut stack = Stack::new();
-    let mut output = String::new();
-    let mut steps = Vec::new();
-
-    stack.push_production(&[Symbol::NonTerminal(grammar.start.clone())]);
-
+    let mut state = DerivationState::new(grammar);
     let mut guard = 0usize;
-    while let Some(symbol) = stack.pop() {
+
+    while !state.is_complete() {
         guard += 1;
         if guard > MAX_DERIVATION_STEPS {
             return Err(GrammarError::DerivationTooLong);
         }
 
-        match symbol {
-            Symbol::Terminal(c) => output.push(c),
-            Symbol::NonTerminal(name) => {
-                let alternatives = grammar
-                    .alternatives(&name)
-                    .ok_or_else(|| GrammarError::UndefinedNonTerminal(name.clone()))?;
-                let choice = rng.gen_range(0..alternatives.len());
-                let production = alternatives[choice].clone();
-                stack.push_production(&production);
-                steps.push(DerivationStep {
-                    non_terminal: name,
-                    production,
-                    stack_after: stack.snapshot_top_first(),
-                    output_so_far: output.clone(),
-                });
-            }
-        }
+        let nt = state
+            .current_non_terminal()
+            .ok_or(GrammarError::DerivationTooLong)?;
+        let alternatives = grammar
+            .alternatives(&nt)
+            .ok_or_else(|| GrammarError::UndefinedNonTerminal(nt.clone()))?;
+        let choice = rng.gen_range(0..alternatives.len());
+        state.apply_choice(grammar, choice)?;
     }
 
     Ok(Derivation {
-        steps,
-        sentence: output,
+        steps: state.steps,
+        sentence: state.output,
     })
 }
 
@@ -113,5 +162,33 @@ mod tests {
         assert_eq!(derivation.steps[0].output_so_far, "");
         assert_eq!(derivation.steps[1].non_terminal, "A");
         assert_eq!(derivation.steps[1].output_so_far, "a");
+    }
+
+    #[test]
+    fn derivation_state_manages_controlled_choices_and_completion() {
+        let grammar = parse_grammar("S -> aS | ab").unwrap();
+        let mut state = DerivationState::new(&grammar);
+
+        assert_eq!(state.current_non_terminal().as_deref(), Some("S"));
+        assert!(!state.is_complete());
+        assert_eq!(state.output, "");
+
+        // Apply choice 0: S -> aS
+        state.apply_choice(&grammar, 0).unwrap();
+        assert_eq!(state.output, "a");
+        assert_eq!(state.current_non_terminal().as_deref(), Some("S"));
+        assert_eq!(state.steps.len(), 1);
+        assert_eq!(state.steps[0].non_terminal, "S");
+        assert_eq!(
+            state.steps[0].production,
+            vec![Symbol::Terminal('a'), Symbol::NonTerminal("S".to_string())]
+        );
+
+        // Apply choice 1: S -> ab
+        state.apply_choice(&grammar, 1).unwrap();
+        assert_eq!(state.output, "aab");
+        assert!(state.is_complete());
+        assert_eq!(state.current_non_terminal(), None);
+        assert_eq!(state.steps.len(), 2);
     }
 }

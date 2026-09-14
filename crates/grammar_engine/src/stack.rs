@@ -1,6 +1,6 @@
 use crate::symbol::Symbol;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Stack {
     items: Vec<Symbol>,
 }
@@ -25,6 +25,10 @@ impl Stack {
 
     pub fn pop(&mut self) -> Option<Symbol> {
         self.items.pop()
+    }
+
+    pub fn peek(&self) -> Option<&Symbol> {
+        self.items.last()
     }
 
     pub fn snapshot_top_first(&self) -> Vec<Symbol> {

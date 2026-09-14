@@ -8,7 +8,7 @@ mod regex_conversion;
 mod stack;
 mod symbol;
 
-pub use derivation::{Derivation, DerivationStep, derive_random};
+pub use derivation::{Derivation, DerivationState, DerivationStep, derive_random};
 pub use examples::{EXAMPLE_SOURCES, ExampleGrammar, examples};
 pub use grammar::{Grammar, parse_grammar, validate_regular};
 pub use regex_conversion::to_regex;
