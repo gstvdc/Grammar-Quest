@@ -6,16 +6,16 @@ aperte antes da Fase 2/3.
 
 ## Fase 0 — Motor de gramática (`grammar_engine`)
 
-- [ ] Modelar `Grammar { non_terminals, terminals, productions, start }`.
-- [ ] Parser de uma notação textual simples (`S -> aS | ab`).
-- [ ] Validação: gramática é regular (produções só do tipo `A -> aB`,
+- [x] Modelar `Grammar { non_terminals, terminals, productions, start }`.
+- [x] Parser de uma notação textual simples (`S -> aS | ab`).
+- [x] Validação: gramática é regular (produções só do tipo `A -> aB`,
       `A -> a` ou `A -> ε`).
-- [ ] Derivação aleatória via **pilha** (`Vec<Symbol>`), seguindo o
+- [x] Derivação aleatória via **pilha** (`Vec<Symbol>`), seguindo o
       algoritmo do PDF passo a passo, registrando cada produção aplicada.
-- [ ] Conversão para expressão regular por eliminação de variáveis
+- [x] Conversão para expressão regular por eliminação de variáveis
       não-terminais (equações à la exemplo do PDF: `S = aS + ab` → `a*ab`).
-- [ ] Três gramáticas de exemplo embutidas.
-- [ ] Testes unitários cobrindo o exemplo exato do PDF (`S ::= aS | ab` →
+- [x] Três gramáticas de exemplo embutidas.
+- [x] Testes unitários cobrindo o exemplo exato do PDF (`S ::= aS | ab` →
       regex `a*ab`).
 
 ## Fase 1 — Casca do app + painel (`grammar_quest`)
