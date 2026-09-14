@@ -125,6 +125,33 @@ fn parse_alternative(alt_text: &str) -> Result<Vec<Symbol>, GrammarError> {
     Ok(symbols)
 }
 
+pub fn validate_regular(grammar: &Grammar) -> Result<(), GrammarError> {
+    for non_terminal in &grammar.non_terminals {
+        let alternatives = grammar.productions.get(non_terminal).into_iter().flatten();
+        for alt in alternatives {
+            for (index, symbol) in alt.iter().enumerate() {
+                let is_last = index + 1 == alt.len();
+                if matches!(symbol, Symbol::NonTerminal(_)) && !is_last {
+                    return Err(GrammarError::NotRegular {
+                        non_terminal: non_terminal.clone(),
+                        alternative: format_alternative(alt),
+                        reason: "não-terminal só pode aparecer como último símbolo (gramática regular à direita)".to_string(),
+                    });
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn format_alternative(alt: &[Symbol]) -> String {
+    if alt.is_empty() {
+        "&".to_string()
+    } else {
+        alt.iter().map(|s| s.to_string()).collect()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -198,5 +225,32 @@ mod tests {
     fn forward_references_to_non_terminals_declared_later_are_allowed() {
         let grammar = parse_grammar("S -> aA\nA -> b").unwrap();
         assert!(grammar.alternatives("S").is_some());
+    }
+
+    #[test]
+    fn accepts_right_linear_pdf_example() {
+        let grammar = parse_grammar("S -> aS | ab").unwrap();
+        assert!(validate_regular(&grammar).is_ok());
+    }
+
+    #[test]
+    fn accepts_multi_non_terminal_right_linear_grammar() {
+        let grammar =
+            parse_grammar("S -> aA | bB\nA -> bA | aC\nB -> aB | bC\nC -> a").unwrap();
+        assert!(validate_regular(&grammar).is_ok());
+    }
+
+    #[test]
+    fn rejects_non_terminal_in_the_middle_of_an_alternative() {
+        let grammar = parse_grammar("S -> aAb\nA -> c").unwrap();
+        let err = validate_regular(&grammar).unwrap_err();
+        assert!(matches!(err, GrammarError::NotRegular { .. }));
+    }
+
+    #[test]
+    fn rejects_more_than_one_non_terminal_in_an_alternative() {
+        let grammar = parse_grammar("S -> AB\nA -> a\nB -> b").unwrap();
+        let err = validate_regular(&grammar).unwrap_err();
+        assert!(matches!(err, GrammarError::NotRegular { .. }));
     }
 }
