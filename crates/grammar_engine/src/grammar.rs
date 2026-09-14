@@ -64,10 +64,10 @@ pub fn parse_grammar(text: &str) -> Result<Grammar, GrammarError> {
     for alts in productions.values() {
         for alt in alts {
             for symbol in alt {
-                if let Symbol::NonTerminal(name) = symbol {
-                    if !non_terminals_set.contains(name) {
-                        return Err(GrammarError::UndefinedNonTerminal(name.clone()));
-                    }
+                if let Symbol::NonTerminal(name) = symbol
+                    && !non_terminals_set.contains(name)
+                {
+                    return Err(GrammarError::UndefinedNonTerminal(name.clone()));
                 }
             }
         }
@@ -235,8 +235,7 @@ mod tests {
 
     #[test]
     fn accepts_multi_non_terminal_right_linear_grammar() {
-        let grammar =
-            parse_grammar("S -> aA | bB\nA -> bA | aC\nB -> aB | bC\nC -> a").unwrap();
+        let grammar = parse_grammar("S -> aA | bB\nA -> bA | aC\nB -> aB | bC\nC -> a").unwrap();
         assert!(validate_regular(&grammar).is_ok());
     }
 

@@ -1,4 +1,4 @@
-use crate::grammar::{parse_grammar, Grammar};
+use crate::grammar::{Grammar, parse_grammar};
 
 #[derive(Debug, Clone, Copy)]
 pub struct ExampleGrammar {
