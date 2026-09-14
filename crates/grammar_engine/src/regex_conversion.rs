@@ -48,6 +48,12 @@ pub fn to_regex(grammar: &Grammar) -> Result<String, GrammarError> {
     })?;
     let final_terms = resolve_self_reference(&grammar.start, start_equation);
 
+    if final_terms.is_empty() {
+        return Err(GrammarError::RegexConversionFailed(
+            "gramática não produz nenhuma sentença".to_string(),
+        ));
+    }
+
     let mut pieces = Vec::with_capacity(final_terms.len());
     for term in final_terms {
         if term.target.is_some() {
@@ -143,7 +149,19 @@ mod tests {
     use super::*;
     use crate::derivation::derive_random;
     use crate::grammar::parse_grammar;
+    use crate::symbol::GrammarError;
     use regex::Regex;
+
+    #[test]
+    fn rejects_a_self_recursive_grammar_with_no_terminating_alternative() {
+        let grammar = parse_grammar("S -> aS").unwrap();
+        let result = to_regex(&grammar);
+
+        assert!(matches!(
+            result,
+            Err(GrammarError::RegexConversionFailed(message)) if message.contains("não produz")
+        ));
+    }
 
     #[test]
     fn matches_the_exact_pdf_example_output() {
