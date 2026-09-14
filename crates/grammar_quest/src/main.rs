@@ -1,6 +1,7 @@
 use macroquad::prelude::*;
 
 mod state;
+mod ui;
 
 fn window_conf() -> Conf {
     Conf {
@@ -13,12 +14,25 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
+    let mut state = state::AppState::new();
     loop {
-        clear_background(Color::from_rgba(10, 12, 16, 255));
+        clear_background(Color::from_rgba(13, 7, 24, 255));
 
         egui_macroquad::ui(|ctx| {
-            egui::Window::new("Grammar Quest").show(ctx, |ui| {
-                ui.label("Scaffold ok — motor e labirinto ainda por implementar.");
+            ui::theme::apply(ctx);
+            ui::side_panel::show_side_panel(ctx, state.result.as_ref());
+            egui::SidePanel::left("grammar_editor")
+                .default_width(330.0)
+                .show(ctx, |ui| {
+                    if ui::editor::show_editor(ui, &mut state) {
+                        state.generate();
+                    }
+                });
+            egui::CentralPanel::default().show(ctx, |ui| {
+                ui.vertical_centered(|ui| {
+                    ui.add_space(100.0);
+                    ui::side_panel::show_result(ui, state.result.as_ref());
+                });
             });
         });
 
