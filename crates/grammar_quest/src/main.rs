@@ -1,5 +1,7 @@
 use macroquad::prelude::*;
 
+mod state;
+
 fn window_conf() -> Conf {
     Conf {
         window_title: "Grammar Quest".to_owned(),
