@@ -33,8 +33,6 @@ pub fn derive_random(grammar: &Grammar) -> Result<Derivation, GrammarError> {
     stack.push_production(&[Symbol::NonTerminal(grammar.start.clone())]);
 
     let mut guard = 0usize;
-    let mut pending_productions: Vec<(String, Vec<Symbol>, usize)> = Vec::new();
-
     while let Some(symbol) = stack.pop() {
         guard += 1;
         if guard > MAX_DERIVATION_STEPS {
@@ -42,31 +40,20 @@ pub fn derive_random(grammar: &Grammar) -> Result<Derivation, GrammarError> {
         }
 
         match symbol {
-            Symbol::Terminal(c) => {
-                output.push(c);
-                // Decrement the counter for the top pending production
-                if let Some((_, _, remaining)) = pending_productions.last_mut() {
-                    *remaining -= 1;
-                    if *remaining == 0 {
-                        let (name, production, _) = pending_productions.pop().unwrap();
-                        steps.push(DerivationStep {
-                            non_terminal: name,
-                            production,
-                            stack_after: stack.snapshot_top_first(),
-                            output_so_far: output.clone(),
-                        });
-                    }
-                }
-            }
+            Symbol::Terminal(c) => output.push(c),
             Symbol::NonTerminal(name) => {
                 let alternatives = grammar
                     .alternatives(&name)
                     .ok_or_else(|| GrammarError::UndefinedNonTerminal(name.clone()))?;
                 let choice = rng.gen_range(0..alternatives.len());
                 let production = alternatives[choice].clone();
-                let production_size = production.len();
                 stack.push_production(&production);
-                pending_productions.push((name, production, production_size));
+                steps.push(DerivationStep {
+                    non_terminal: name,
+                    production,
+                    stack_after: stack.snapshot_top_first(),
+                    output_so_far: output.clone(),
+                });
             }
         }
     }
@@ -105,8 +92,8 @@ mod tests {
         assert_eq!(derivation.steps.len(), 1);
         assert_eq!(derivation.sentence, "a");
         assert_eq!(derivation.steps[0].non_terminal, "S");
-        assert_eq!(derivation.steps[0].output_so_far, "a");
-        assert!(derivation.steps[0].stack_after.is_empty());
+        assert_eq!(derivation.steps[0].output_so_far, "");
+        assert_eq!(derivation.steps[0].stack_after, vec![Symbol::Terminal('a')]);
     }
 
     #[test]
@@ -114,5 +101,17 @@ mod tests {
         let grammar = parse_grammar("S -> aS").unwrap();
         let result = derive_random(&grammar);
         assert_eq!(result.unwrap_err(), GrammarError::DerivationTooLong);
+    }
+
+    #[test]
+    fn records_all_non_terminal_expansions_at_all_depths() {
+        let grammar = parse_grammar("S -> aA\nA -> a").unwrap();
+        let derivation = derive_random(&grammar).unwrap();
+        assert_eq!(derivation.sentence, "aa");
+        assert_eq!(derivation.steps.len(), 2);
+        assert_eq!(derivation.steps[0].non_terminal, "S");
+        assert_eq!(derivation.steps[0].output_so_far, "");
+        assert_eq!(derivation.steps[1].non_terminal, "A");
+        assert_eq!(derivation.steps[1].output_so_far, "a");
     }
 }
