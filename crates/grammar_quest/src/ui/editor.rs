@@ -2,7 +2,14 @@ use grammar_engine::EXAMPLE_SOURCES;
 
 use crate::state::AppState;
 
-pub fn show_editor(ui: &mut egui::Ui, state: &mut AppState) -> bool {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EditorAction {
+    None,
+    Generate,
+    PlayMaze,
+}
+
+pub fn show_editor(ui: &mut egui::Ui, state: &mut AppState) -> EditorAction {
     ui.heading("Grammar Maze");
     ui.label("Laboratório de gramáticas regulares");
     let selected = state
@@ -25,7 +32,7 @@ pub fn show_editor(ui: &mut egui::Ui, state: &mut AppState) -> bool {
     let response = ui.add(
         egui::TextEdit::multiline(&mut state.grammar_text)
             .hint_text("S -> aS | ab")
-            .desired_rows(10)
+            .desired_rows(8)
             .code_editor(),
     );
     if response.changed() {
@@ -35,12 +42,36 @@ pub fn show_editor(ui: &mut egui::Ui, state: &mut AppState) -> bool {
     if let Some(error) = &state.error_message {
         ui.colored_label(egui::Color32::from_rgb(255, 125, 170), format!("⚠ {error}"));
     }
-    ui.add_space(8.0);
-    ui.add_sized(
-        [ui.available_width(), 38.0],
-        egui::Button::new("Gerar sentença aleatória"),
-    )
-    .clicked()
+    ui.add_space(10.0);
+
+    let play_clicked = ui
+        .add_sized(
+            [ui.available_width(), 44.0],
+            egui::Button::new(
+                egui::RichText::new("⚔ ENTRAR NO LABIRINTO")
+                    .size(16.0)
+                    .color(egui::Color32::from_rgb(13, 7, 24))
+                    .strong(),
+            )
+            .fill(egui::Color32::from_rgb(74, 229, 255)),
+        )
+        .clicked();
+
+    ui.add_space(6.0);
+    let generate_clicked = ui
+        .add_sized(
+            [ui.available_width(), 36.0],
+            egui::Button::new("Gerar sentença rápida"),
+        )
+        .clicked();
+
+    if play_clicked {
+        EditorAction::PlayMaze
+    } else if generate_clicked {
+        EditorAction::Generate
+    } else {
+        EditorAction::None
+    }
 }
 
 #[cfg(test)]
@@ -52,7 +83,8 @@ mod tests {
         let mut state = crate::state::AppState::new();
         let _ = ctx.run(egui::RawInput::default(), |ctx| {
             egui::CentralPanel::default().show(ctx, |ui| {
-                let _ = show_editor(ui, &mut state);
+                let action = show_editor(ui, &mut state);
+                assert_eq!(action, EditorAction::None);
             });
         });
     }
