@@ -2,6 +2,7 @@
 //! para expressão regular. Ver docs/superpowers/specs/2026-09-14-grammar-quest-design.md.
 
 mod derivation;
+mod examples;
 mod grammar;
 mod regex_conversion;
 mod stack;
