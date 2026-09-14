@@ -1,0 +1,10 @@
+[workspace]
+resolver = "2"
+members = ["crates/grammar_engine", "crates/grammar_quest"]
+
+[workspace.package]
+edition = "2024"
+
+[profile.release]
+opt-level = 3
+lto = true

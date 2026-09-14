@@ -1,0 +1,10 @@
+[package]
+name = "grammar_engine"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+rand = "0.8"
+
+[dev-dependencies]
+regex = "1"
