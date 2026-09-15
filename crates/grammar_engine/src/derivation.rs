@@ -165,6 +165,59 @@ mod tests {
     }
 
     #[test]
+    fn records_a_full_event_trace_matching_the_pdf_fixture() {
+        let grammar = parse_grammar("S -> aS | ab").unwrap();
+        let mut state = DerivationState::new(&grammar);
+
+        state.apply_choice(&grammar, 0).unwrap();
+        state.apply_choice(&grammar, 0).unwrap();
+        state.apply_choice(&grammar, 1).unwrap();
+
+        assert!(state.is_complete());
+        assert_eq!(state.output, "aaab");
+
+        let chosen: Vec<usize> = state
+            .events
+            .iter()
+            .filter_map(|event| match event {
+                DerivationEvent::ProductionChosen {
+                    alternative_index, ..
+                } => Some(*alternative_index),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(chosen, vec![0, 0, 1]);
+
+        let popped: Vec<char> = state
+            .events
+            .iter()
+            .filter_map(|event| match event {
+                DerivationEvent::TerminalPopped { terminal, .. } => Some(*terminal),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(popped, vec!['a', 'a', 'a', 'b']);
+
+        let pushed_stacks: Vec<Vec<Symbol>> = state
+            .events
+            .iter()
+            .filter_map(|event| match event {
+                DerivationEvent::Pushed { stack_after } => Some(stack_after.clone()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            pushed_stacks[0],
+            vec![Symbol::Terminal('a'), Symbol::NonTerminal("S".to_string())]
+        );
+
+        match state.events.last() {
+            Some(DerivationEvent::Completed { sentence }) => assert_eq!(sentence, "aaab"),
+            other => panic!("esperava evento Completed no final, veio {other:?}"),
+        }
+    }
+
+    #[test]
     fn derivation_state_manages_controlled_choices_and_completion() {
         let grammar = parse_grammar("S -> aS | ab").unwrap();
         let mut state = DerivationState::new(&grammar);

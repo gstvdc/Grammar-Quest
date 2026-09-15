@@ -2,79 +2,280 @@ use crate::state::PanelResult;
 
 pub fn show_result(ui: &mut egui::Ui, result: Option<&PanelResult>) {
     if let Some(result) = result {
-        egui::Frame::group(ui.style())
-            .fill(egui::Color32::from_rgb(25, 19, 45))
+        egui::Frame::NONE
+            .fill(egui::Color32::from_rgb(18, 12, 34))
+            .stroke(egui::Stroke::new(
+                1.5_f32,
+                egui::Color32::from_rgb(52, 255, 180),
+            ))
+            .corner_radius(egui::CornerRadius::same(16))
+            .inner_margin(egui::Margin::same(28))
             .show(ui, |ui| {
-                ui.label(
-                    egui::RichText::new("DERIVAÇÃO CONCLUÍDA")
-                        .color(egui::Color32::from_rgb(116, 255, 191)),
-                );
+                ui.horizontal(|ui| {
+                    ui.label(
+                        egui::RichText::new("✓ DERIVAÇÃO CONCLUÍDA")
+                            .color(egui::Color32::from_rgb(52, 255, 180))
+                            .strong()
+                            .size(13.0),
+                    );
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        ui.label(
+                            egui::RichText::new(format!("{} passos aplicados", result.steps.len()))
+                                .color(egui::Color32::from_rgb(150, 130, 190))
+                                .size(12.0),
+                        );
+                    });
+                });
+
                 ui.add_space(18.0);
-                ui.label("Sentença gerada");
+                ui.label(
+                    egui::RichText::new("Sentença Gerada pela Gramática:")
+                        .color(egui::Color32::from_rgb(160, 140, 200))
+                        .size(13.0),
+                );
                 ui.label(
                     egui::RichText::new(&result.sentence)
-                        .size(52.0)
-                        .color(egui::Color32::from_rgb(74, 229, 255)),
+                        .size(48.0)
+                        .color(egui::Color32::from_rgb(0, 240, 255))
+                        .strong(),
                 );
-                ui.add_space(18.0);
-                ui.label("Expressão regular");
-                ui.monospace(
-                    egui::RichText::new(&result.regex)
-                        .size(18.0)
-                        .color(egui::Color32::from_rgb(238, 166, 255)),
+
+                ui.add_space(16.0);
+                ui.horizontal(|ui| {
+                    ui.label(
+                        egui::RichText::new("Expressão Regular:")
+                            .color(egui::Color32::from_rgb(160, 140, 200))
+                            .size(13.0),
+                    );
+                    egui::Frame::NONE
+                        .fill(egui::Color32::from_rgb(28, 16, 50))
+                        .stroke(egui::Stroke::new(
+                            1.0_f32,
+                            egui::Color32::from_rgb(192, 132, 252),
+                        ))
+                        .corner_radius(egui::CornerRadius::same(6))
+                        .inner_margin(egui::Margin::symmetric(10, 4))
+                        .show(ui, |ui| {
+                            ui.monospace(
+                                egui::RichText::new(&result.regex)
+                                    .size(17.0)
+                                    .color(egui::Color32::from_rgb(238, 166, 255))
+                                    .strong(),
+                            );
+                        });
+                });
+
+                ui.add_space(14.0);
+                ui.label(
+                    egui::RichText::new(
+                        "Clique em '▶ JOGAR NO LABIRINTO 2D' para derivar passo a passo controlando o personagem.",
+                    )
+                    .color(egui::Color32::from_rgb(130, 110, 170))
+                    .size(12.0),
                 );
-                ui.add_space(12.0);
-                ui.label(format!("{} expansões aplicadas", result.steps.len()));
             });
     } else {
-        ui.heading("Pronto para derivar");
-        ui.label("Escolha um exemplo ou escreva uma gramática regular e gere uma sentença.");
+        egui::Frame::NONE
+            .fill(egui::Color32::from_rgb(18, 12, 34))
+            .stroke(egui::Stroke::new(
+                1.0_f32,
+                egui::Color32::from_rgb(45, 28, 75),
+            ))
+            .corner_radius(egui::CornerRadius::same(16))
+            .inner_margin(egui::Margin::same(32))
+            .show(ui, |ui| {
+                ui.vertical_centered(|ui| {
+                    ui.label(
+                        egui::RichText::new("⚡ BEM-VINDO AO GRAMMAR QUEST")
+                            .color(egui::Color32::from_rgb(0, 240, 255))
+                            .strong()
+                            .size(18.0),
+                    );
+                    ui.add_space(10.0);
+                    ui.label(
+                        egui::RichText::new(
+                            "Escolha um exemplo à esquerda ou digite produções de uma gramática regular.\nVocê pode testar a derivação no laboratório ou entrar no labirinto interativo!",
+                        )
+                        .color(egui::Color32::from_rgb(170, 150, 210))
+                        .size(13.0),
+                    );
+                    ui.add_space(16.0);
+                    ui.horizontal(|ui| {
+                        ui.label(
+                            egui::RichText::new("✓ Gramática Regular Tipo 3")
+                                .color(egui::Color32::from_rgb(52, 255, 180))
+                                .size(12.0),
+                        );
+                        ui.separator();
+                        ui.label(
+                            egui::RichText::new("✓ Pilha com Não-Terminal no Topo")
+                                .color(egui::Color32::from_rgb(192, 132, 252))
+                                .size(12.0),
+                        );
+                        ui.separator();
+                        ui.label(
+                            egui::RichText::new("✓ Equivalência a Expressões Regulares")
+                                .color(egui::Color32::from_rgb(0, 240, 255))
+                                .size(12.0),
+                        );
+                    });
+                });
+            });
     }
+}
+
+fn typewriter_prefix(text: &str, progress: f32) -> String {
+    let visible = (text.chars().count() as f32 * progress.clamp(0.0, 1.0)).ceil() as usize;
+    text.chars().take(visible).collect()
 }
 
 pub fn show_side_panel(ctx: &egui::Context, result: Option<&PanelResult>) {
     egui::SidePanel::right("derivation_trace")
-        .resizable(true)
-        .default_width(300.0)
+        .resizable(false)
+        .default_width(310.0)
+        .frame(
+            egui::Frame::side_top_panel(&ctx.style())
+                .fill(egui::Color32::from_rgb(12, 8, 22))
+                .stroke(egui::Stroke::new(
+                    1.0_f32,
+                    egui::Color32::from_rgb(45, 28, 75),
+                ))
+                .inner_margin(egui::Margin::symmetric(16, 14)),
+        )
         .show(ctx, |ui| {
-            ui.heading("Pilha e derivação");
+            ui.horizontal(|ui| {
+                ui.label(
+                    egui::RichText::new("📖 TRILHA FORMAL")
+                        .color(egui::Color32::from_rgb(192, 132, 252))
+                        .strong()
+                        .size(14.0),
+                );
+                if let Some(result) = result {
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        ui.label(
+                            egui::RichText::new(format!("{} passos", result.steps.len()))
+                                .color(egui::Color32::from_rgb(140, 120, 180))
+                                .size(12.0),
+                        );
+                    });
+                }
+            });
+            ui.add_space(10.0);
+            ui.separator();
+            ui.add_space(8.0);
+
             egui::ScrollArea::vertical().show(ui, |ui| {
                 if let Some(result) = result {
-                    for (index, step) in result.steps.iter().enumerate() {
-                        egui::Frame::group(ui.style())
-                            .fill(egui::Color32::from_rgb(29, 21, 50))
-                            .show(ui, |ui| {
-                                ui.label(
-                                    egui::RichText::new(format!("Passo {:02}", index + 1))
-                                        .color(egui::Color32::from_rgb(238, 166, 255)),
-                                );
-                                let production: String =
-                                    step.production.iter().map(ToString::to_string).collect();
-                                ui.monospace(format!("{} → {production}", step.non_terminal));
-                                ui.label(format!(
-                                    "Saída: {}",
-                                    if step.output_so_far.is_empty() {
-                                        "ε"
-                                    } else {
-                                        &step.output_so_far
-                                    }
-                                ));
-                                let stack: String = step
-                                    .stack_after
-                                    .iter()
-                                    .map(ToString::to_string)
-                                    .collect::<Vec<_>>()
-                                    .join(" · ");
-                                ui.label(format!(
-                                    "Topo → base: {}",
-                                    if stack.is_empty() { "∅" } else { &stack }
-                                ));
-                            });
-                        ui.add_space(6.0);
+                    let total_steps = result.steps.len();
+                    let duration = (total_steps as f32 * 0.12).clamp(0.20, 1.2);
+                    let animated_steps = ctx.animate_value_with_time(
+                        egui::Id::new("derivation_trace_steps"),
+                        total_steps as f32,
+                        duration,
+                    );
+                    let visible_steps = (animated_steps.ceil() as usize).min(total_steps);
+                    if result.steps.is_empty() {
+                        ui.label(
+                            egui::RichText::new("Nenhum passo aplicado ainda.")
+                                .color(egui::Color32::from_rgb(140, 120, 180))
+                                .size(12.0),
+                        );
+                    } else {
+                        for (index, step) in result.steps.iter().take(visible_steps).enumerate() {
+                            egui::Frame::NONE
+                                .fill(egui::Color32::from_rgb(20, 14, 38))
+                                .stroke(egui::Stroke::new(
+                                    1.0_f32,
+                                    egui::Color32::from_rgb(45, 28, 75),
+                                ))
+                                .corner_radius(egui::CornerRadius::same(8))
+                                .inner_margin(egui::Margin::symmetric(12, 8))
+                                .show(ui, |ui| {
+                                    ui.horizontal(|ui| {
+                                        ui.label(
+                                            egui::RichText::new(format!("Passo {:02}", index + 1))
+                                                .color(egui::Color32::from_rgb(0, 240, 255))
+                                                .size(11.0)
+                                                .strong(),
+                                        );
+                                        let production: String = step
+                                            .production
+                                            .iter()
+                                            .map(ToString::to_string)
+                                            .collect();
+                                        let full_rule = format!("{} → {production}", step.non_terminal);
+                                        let fractional_step = animated_steps.fract();
+                                        let rule_text = if index + 1 == visible_steps
+                                            && animated_steps < total_steps as f32
+                                        {
+                                            typewriter_prefix(&full_rule, fractional_step)
+                                        } else {
+                                            full_rule
+                                        };
+                                        ui.with_layout(
+                                            egui::Layout::right_to_left(egui::Align::Center),
+                                            |ui| {
+                                                ui.monospace(
+                                                    egui::RichText::new(rule_text)
+                                                    .color(egui::Color32::from_rgb(
+                                                        238, 166, 255,
+                                                    ))
+                                                    .strong(),
+                                                );
+                                            },
+                                        );
+                                    });
+
+                                    ui.add_space(4.0);
+                                    ui.label(
+                                        egui::RichText::new(format!(
+                                            "Saída parcial: \"{}\"",
+                                            if step.output_so_far.is_empty() {
+                                                "ε"
+                                            } else {
+                                                &step.output_so_far
+                                            }
+                                        ))
+                                        .color(egui::Color32::from_rgb(52, 255, 180))
+                                        .size(11.0),
+                                    );
+
+                                    let stack: String = step
+                                        .stack_after
+                                        .iter()
+                                        .map(ToString::to_string)
+                                        .collect::<Vec<_>>()
+                                        .join(" · ");
+                                    ui.label(
+                                        egui::RichText::new(format!(
+                                            "Pilha pós-regra: {}",
+                                            if stack.is_empty() { "∅" } else { &stack }
+                                        ))
+                                        .color(egui::Color32::from_rgb(160, 140, 200))
+                                        .size(11.0),
+                                    );
+                                });
+                            ui.add_space(6.0);
+                        }
                     }
                 } else {
-                    ui.label("A pilha aparecerá aqui após a geração.");
+                    ui.label(
+                        egui::RichText::new("A trilha acadêmica será registrada aqui conforme você deriver ou jogar no labirinto.")
+                            .color(egui::Color32::from_rgb(140, 120, 180))
+                            .size(12.0),
+                    );
                 }
             });
         });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::typewriter_prefix;
+
+    #[test]
+    fn typewriter_reveals_a_prefix_without_splitting_utf8_characters() {
+        assert_eq!(typewriter_prefix("S → ação", 0.75), "S → aç");
+        assert_eq!(typewriter_prefix("S → ação", 1.0), "S → ação");
+    }
 }

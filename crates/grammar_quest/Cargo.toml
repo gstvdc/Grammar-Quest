@@ -9,3 +9,6 @@ egui-macroquad = "0.17.3"
 grammar_engine = { path = "../grammar_engine" }
 macroquad = "0.4.16"
 rand = "0.8"
+
+[build-dependencies]
+image = "0.24.9"

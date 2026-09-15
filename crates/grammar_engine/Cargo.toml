@@ -5,6 +5,6 @@ edition.workspace = true
 
 [dependencies]
 rand = "0.8"
+regex = "1"
 
 [dev-dependencies]
-regex = "1"

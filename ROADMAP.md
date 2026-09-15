@@ -20,33 +20,39 @@ aperte antes da Fase 2/3.
 
 ## Fase 1 — Casca do app + painel (`grammar_quest`)
 
-- [ ] Janela macroquad + overlay egui-macroquad.
-- [ ] Formulário de entrada da gramática (N, T, P, S) ou seletor das 3
+- [x] Janela macroquad + overlay egui-macroquad.
+- [x] Formulário de entrada da gramática (N, T, P, S) ou seletor das 3
       gramáticas prontas.
-- [ ] Botão "gerar sentença aleatória" chamando `grammar_engine`.
-- [ ] Painel lateral: pilha (estado atual), log de derivação passo a
+- [x] Botão "gerar sentença aleatória" chamando `grammar_engine`.
+- [x] Painel lateral: pilha (estado atual), log de derivação passo a
       passo, sentença final, expressão regular.
-- [ ] Neste ponto: **especificação do professor 100% atendida.**
+- [x] Neste ponto: **especificação do professor 100% atendida.**
 
 ## Fase 2 — Grammar Maze
 
-- [ ] Tela de labirinto reaproveitando o painel lateral da Fase 1.
-- [ ] Bifurcações do labirinto = produções do não-terminal atual;
+- [x] Tela de labirinto reaproveitando o painel lateral da Fase 1.
+- [x] Bifurcações do labirinto = produções do não-terminal atual;
       escolher um corredor = aplicar aquela produção (empilha/desempilha
       de verdade, ao vivo, refletido no painel).
-- [ ] Chegar a uma produção só-terminal fecha a pilha e libera a saída.
-- [ ] Pelo menos as 3 gramáticas de exemplo devem ser jogáveis como
+- [x] Chegar a uma produção só-terminal fecha a pilha e libera a saída.
+- [x] Pelo menos as 3 gramáticas de exemplo devem ser jogáveis como
       labirinto.
 
 ## Fase 3 — Polish ("fluido e bonito")
 
-- [ ] Animação de push/pop da pilha (tween, não corte seco).
-- [ ] Log de derivação com efeito de digitação.
-- [ ] Tema visual coeso (paleta, tipografia, transições entre telas).
-- [ ] Portas-puzzle: sentenças falsas geradas e validadas contra a regex
+- [x] Animação de push/pop da pilha (tween, não corte seco).
+- [x] Log de derivação com efeito de digitação.
+- [x] Tema visual coeso (paleta, tipografia, transições entre telas).
+- [x] Portas-puzzle: sentenças falsas geradas e validadas contra a regex
       derivada (garantia de que as opções erradas realmente não pertencem
       à linguagem).
-- [ ] Tela de vitória / pontuação.
+- [x] Tela de vitória / pontuação.
+
+Validação manual da janela pendente neste ambiente: `cargo run -p grammar_quest`
+aborta durante a inicialização do menu do macOS, dentro de `miniquad`, porque
+`NSRunningApplication.localizedName` retorna nulo. `cargo test`, Clippy e build
+do workspace passam; a conferência visual deve ser repetida em uma execução
+macOS com identidade de aplicativo disponível.
 
 ## Fora de escopo (YAGNI por enquanto)
 

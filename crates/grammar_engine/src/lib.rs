@@ -2,6 +2,7 @@
 //! para expressão regular. Ver docs/superpowers/specs/2026-09-14-grammar-quest-design.md.
 
 mod derivation;
+mod distractors;
 mod examples;
 mod grammar;
 mod regex_conversion;
@@ -9,6 +10,7 @@ mod stack;
 mod symbol;
 
 pub use derivation::{Derivation, DerivationState, DerivationStep, derive_random};
+pub use distractors::generate_distractors;
 pub use examples::{EXAMPLE_SOURCES, ExampleGrammar, examples};
 pub use grammar::{Grammar, parse_grammar, validate_regular};
 pub use regex_conversion::to_regex;

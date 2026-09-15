@@ -8,6 +8,17 @@ pub enum Direction {
     Right,
 }
 
+fn sprite_row_and_flip(direction: Direction) -> (u32, bool) {
+    match direction {
+        Direction::Down => (0, false),
+        Direction::Up => (3, false),
+        // The supplied sheet's side-facing row looks left. Mirror it only
+        // when the character travels right.
+        Direction::Left => (1, false),
+        Direction::Right => (1, true),
+    }
+}
+
 pub struct Player {
     pub pos: Vec2,
     pub speed: f32,
@@ -115,18 +126,12 @@ impl Player {
         );
 
         if let Some(tex) = texture {
-            let row = match self.facing {
-                Direction::Down => 0,
-                Direction::Right | Direction::Left => 1,
-                Direction::Up => 3,
-            };
+            let (row, flip_x) = sprite_row_and_flip(self.facing);
 
             let frame_w = 64.0;
             let frame_h = 64.0;
             let sx = self.frame as f32 * frame_w;
             let sy = row as f32 * frame_h;
-
-            let flip_x = self.facing == Direction::Left;
 
             draw_texture_ex(
                 tex,
@@ -166,5 +171,16 @@ impl Player {
                 Color::from_rgba(238, 166, 255, 255),
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn side_sprite_faces_the_direction_of_travel() {
+        assert_eq!(sprite_row_and_flip(Direction::Left), (1, false));
+        assert_eq!(sprite_row_and_flip(Direction::Right), (1, true));
     }
 }
