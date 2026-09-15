@@ -71,7 +71,7 @@ pub fn show_result(ui: &mut egui::Ui, result: Option<&PanelResult>) {
                 ui.add_space(14.0);
                 ui.label(
                     egui::RichText::new(
-                        "Clique em '▶ JOGAR NO LABIRINTO 2D' para derivar passo a passo controlando o personagem.",
+                        "Escolha um modo de jogo à esquerda e clique no botão de iniciar para derivar passo a passo controlando o personagem.",
                     )
                     .color(egui::Color32::from_rgb(130, 110, 170))
                     .size(12.0),

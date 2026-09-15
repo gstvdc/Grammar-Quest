@@ -1,8 +1,9 @@
 # Grammar Quest
 
 Trabalho de Desenvolvimento (TD1) da disciplina Linguagens Formais e
-Autômatos (UNESC, prof. André Faria Ruaro) — ver `context/Linguagens Formais
-- Aula 6 - TD01.pdf`. Implementado como um jogo em Rust: **Grammar Maze**.
+Autômatos (UNESC, prof. André Faria Ruaro) — ver
+`context/td01-linguagens-formais.pdf`. Implementado como um jogo em Rust:
+**Grammar Maze**.
 
 ## O que o trabalho exige (não negociável)
 

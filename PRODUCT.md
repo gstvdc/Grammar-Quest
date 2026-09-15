@@ -108,8 +108,7 @@ only the required GUI form could not truthfully claim this mechanism.
 
 ## Evidence on Hand
 
-- The original assignment PDF: `context/Linguagens Formais - Aula 6 -
-  TD01.pdf`.
+- The original assignment PDF: `context/td01-linguagens-formais.pdf`.
 - Project audit (compliance, code quality, UI/UX, duplication, dead code):
   `docs/audits/2026-09-15-project-audit.md`.
 - Implementation backlog derived from that audit:

@@ -83,29 +83,44 @@ cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
 ```
 
-**Status:** parcial, verificado em 2026-09-15. Feito: o antigo
-`unwrap_or_default()` sobre regex citado no achado original não existe mais
-(`rg 'unwrap_or_default' crates/` só encontra um uso não relacionado, um
-`Vec<Symbol>` vazio de fallback em `state.rs:317`); `start_free_maze`
-(`state.rs:223-246`) valida parsing e regularidade antes de mudar de modo, e
-uma falha preserva o estado anterior — confirmado pelo teste existente
-`start_free_maze_fails_on_invalid_grammar` (`state.rs:540`), que checa
-`state.mode` continua `Laboratory` e `error_message` é populado. Faltando:
-`start_free_maze`/`start_difficulty_maze` **não** validam produtividade nem
-pré-computam com sucesso a conversão para regex antes do commit —
-`begin_maze` (`state.rs:278-289`) chama
+**Status:** concluído em 2026-09-15, com escopo revisado e aprovado pelo
+usuário (correção cirúrgica em vez da arquitetura `GrammarSession`/`session.rs`
+originalmente proposta acima — avaliada contra `PRODUCT.md` e o limite YAGNI
+de `ROADMAP.md` e considerada abstração desproporcional para este trabalho
+acadêmico). O antigo `unwrap_or_default()` sobre regex já não existia (achado
+de uma rodada anterior). A lacuna real era `begin_maze` chamando
 `to_regex_trace(&grammar).ok()`, descartando silenciosamente qualquer erro de
-regex em vez de bloquear a transição. Verificado com um teste descartável
-(removido após a checagem, não commitado): uma gramática regular mas
-improdutiva `"S -> aB\nB -> aB"` passa por `start_free_maze()` com
-`Ok(())` e `state.mode == ScreenMode::Playing`, violando o critério de aceite
-"improdutiva não entra em `Playing`". `to_regex` não é recomputado por frame
-(só em `generate()`, `begin_maze()` e na conclusão do labirinto), então essa
-parte do aceite já está ok. Não implementado como "correção pequena" porque
-fechar a lacuna exige a arquitetura `GrammarSession`/commit atômico descrita
-no escopo (checar produtividade + regex antes de mutar `AppState`, com
-reversão real em caso de erro) — isso é engenharia de feature, não um ajuste
-cirúrgico, e fica para uma sessão dedicada.
+regex, e nenhuma das duas rotas de entrada validava produtividade.
+
+Correção aplicada em `crates/grammar_quest/src/state.rs`:
+- `start_free_maze` agora chama `derive_random(&grammar)?` antes de aceitar a
+  gramática — reaproveita o sinal de falha já existente do motor
+  (`GrammarError::DerivationTooLong`) como "não é seguro jogar", sem construir
+  uma análise de não-terminais produtivos dedicada (isso é T6, continua fora
+  de escopo). Em seguida `to_regex_trace(&grammar)?` também precisa ter
+  sucesso.
+- `start_difficulty_maze` **não** repete o probe de `derive_random`: a rota
+  já foi provada produtiva por `derive_random_in_step_range` (busca
+  exaustiva por alcançabilidade), que é uma prova mais forte do que uma
+  caminhada aleatória — repetir o probe arriscaria rejeitar gramáticas de
+  dificuldade válidas que tenham um ramo não-relacionado improdutivo. Só
+  `to_regex_trace(&grammar)?` é adicionado.
+- `begin_maze` virou uma função de "commit" pura: recebe `RegexTrace` já
+  validado como parâmetro e só multa `AppState` depois que ambas as
+  validações acima têm sucesso — nenhuma mutação parcial acontece mais em
+  caso de erro (transição atômica Laboratory -> Playing).
+
+Teste novo: `start_free_maze_fails_on_an_unproductive_grammar`
+(`crates/grammar_quest/src/state.rs`) prova com `"S -> aB\nB -> aB"`
+(regular, mas `B` nunca alcança uma alternativa só-terminal) que
+`start_free_maze()` retorna `Err`, `state.mode` permanece `Laboratory`,
+`error_message` é populado, e nem `current_grammar` nem `derivation_state`
+são setados. Todos os testes pré-existentes de gramáticas válidas (os três
+presets, `start_free_maze_transitions_to_playing`,
+`difficulty_maze_generates_a_secret_route_from_a_new_grammar`, etc.) continuam
+passando sem alteração — a rota de dificuldade não ficou mais restritiva.
+`cargo test -p grammar_quest` (24/24), `cargo test -p grammar_engine` (47/47)
+e `cargo clippy --workspace --all-targets` (0 avisos) confirmam.
 
 ## T3 - Traço completo da pilha e da regex
 
@@ -159,13 +174,37 @@ uso.
 por `DoorKind`; aplicar cooldown após erro; remover `floor_metal.png`,
 `wall_glass.png` e licença CC0 se ainda sem referências.
 
-**Status:** parcialmente concluído em 2026-09-15 — apenas a remoção dos
-assets sem uso. `floor_metal.png`, `wall_glass.png` e `tiles/LICENSE-CC0.txt`
-foram removidos e `ATTRIBUTION.md` atualizado (confirmado via `rg
-'floor_metal|wall_glass' crates/grammar_quest` sem resultados antes e depois).
-A troca de `DoorKind`, o cooldown pós-erro e a unificação do fluxo de final
-**não** foram feitos — seguem pendentes para uma sessão dedicada de
-gameplay.
+**Status:** concluído em 2026-09-15. Assets sem uso removidos em uma rodada
+anterior: `floor_metal.png`, `wall_glass.png` e `tiles/LICENSE-CC0.txt`
+(confirmado via `rg 'floor_metal|wall_glass' crates/grammar_quest` sem
+resultados). Nesta rodada, `DoorKind` e o cooldown pós-erro foram
+implementados com escopo reduzido (aprovado pelo usuário): a unificação
+completa do fluxo derivação -> puzzle -> portal -> vitória descrita acima não
+foi tocada (não havia um segundo fluxo de vitória concorrente a unificar —
+`Door::is_exit`/o ramo de saída antiga já não existiam como caminho
+alcançável separado nesta base de código).
+
+- `crates/grammar_quest/src/maze.rs`: `Door.is_exit: bool` virou
+  `Door.kind: DoorKind`, um enum com exatamente duas variantes,
+  `Production` e `Exit` — nenhuma outra representação de porta coexiste.
+  Ambas as variantes são exercitadas em teste
+  (`room_generates_one_door_per_alternative` para `Production`,
+  `room_generates_exit_door_when_stack_is_empty` para `Exit`).
+- `crates/grammar_quest/src/gameplay.rs` e
+  `crates/grammar_quest/src/render/portals.rs`: atualizados para
+  `match`/comparar `DoorKind` em vez do bool antigo; nenhuma referência a
+  `is_exit` sobra no código (`rg is_exit crates/` só encontra o comentário
+  de doc do enum).
+- Cooldown pós-erro: `AppState` ganhou um campo `door_cooldown: f32` e
+  `WRONG_DOOR_COOLDOWN_SECONDS = 0.6`; `apply_maze_choice`/
+  `restart_secret_route` armam o cooldown quando uma porta errada reinicia a
+  rota secreta, `advance_animations(dt)` decrementa por frame, e
+  `gameplay::update_playing` ignora colisões de porta enquanto
+  `state.door_cooldown_active()` — um toque contínuo na mesma porta não
+  repete a penalidade a cada frame.
+
+`cargo test -p grammar_quest maze` e `state` passam, `cargo test --workspace`
+(47 + 24) e `cargo clippy --workspace --all-targets` (0 avisos) confirmam.
 
 **Aceite:** todo `DoorKind` é alcançável e testado; vitória ocorre no portal;
 colisão contínua não repete erros; `rg 'floor_metal|wall_glass'
@@ -319,17 +358,20 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo build --release --workspace
 ```
 
-**Status:** não iniciado, verificado em 2026-09-15. `docs/acceptance-checklist.md`
-não existe. O `README.md` documenta um pré-requisito genérico ("stable Rust
-toolchain with Rust 2024 edition support", linha 53) e traz uma nota sobre o
-panic conhecido do `miniquad` em automação macOS sem identidade de app
-(seção "macOS note"), mas não fixa uma versão mínima de Rust nem de macOS, e
-não existe um roteiro que amarre cada um dos sete requisitos do PDF (e os
-três presets) a uma ação visível na UI com o resultado esperado
-(`aaab`/`a*ab`). Isso confirma o achado original do audit — nada mudou desde
-então. Não atacado como ajuste pequeno: escrever esse checklist é trabalho de
-autoria de conteúdo (não uma correção de código) e deve ser feito por quem
-vai de fato rodar o roteiro descrito, então fica para uma sessão dedicada.
+**Status:** concluído em 2026-09-15. `docs/acceptance-checklist.md` criado,
+amarrando cada um dos sete requisitos de `CLAUDE.md`/do PDF a uma ação
+concreta na UI e ao resultado esperado (inclui o caso `S -> aB\nB -> aB`
+improdutivo do T2 como parte do roteiro do requisito 4, e o passo a passo até
+`a*ab` para o requisito 7). `README.md` atualizado: o pré-requisito de Rust
+agora cita a versão verificada nesta máquina (`rustc 1.98.0
+(88d9e12ae 2026-08-18)`; não há `rust-toolchain.toml` fixando uma versão, então
+o texto deixa explícito que qualquer stable mais nova com suporte a edition
+2024 deve funcionar); a seção "How it works" que citava a ficha `G={N,T,P,S}`
+como pendência do audit foi atualizada para refletir que T1 já a implementa;
+a nota do panic do `miniquad` no macOS foi mantida (não foi reinvestigada —
+fora de escopo) e passou a apontar para o checklist novo em vez do audit
+genérico. O roadmap e a task doc só marcam este item concluído porque o
+checklist foi de fato escrito e lido, não apenas planejado.
 
 ## Achados adicionais desta rodada de verificação (2026-09-15)
 
@@ -349,4 +391,30 @@ subsequente de build/test/clippy seria confiável. `cargo build --workspace`,
 `cargo clippy --workspace --all-targets` (0 avisos) e as suítes de teste de
 `grammar_engine` (47/47) e `grammar_quest` (22/22) voltaram a passar depois
 do ajuste.
+
+## Rodada final: T2, T4 (restante) e T8 (2026-09-15)
+
+Fechamento explicitamente aprovado pelo usuário com escopo reduzido em T2 e
+T4 (ver os blocos de status atualizados acima) — T6 e T7 permanecem
+propositalmente **não iniciados**, rejeitados por desproporcionais ao escopo
+de avaliação desta disciplina; nenhum arquivo novo foi criado para eles e
+seus status blocks não foram tocados nesta rodada.
+
+Durante a implementação, foi observado que outra sessão estava editando
+`crates/grammar_quest/src/state.rs` e `gameplay.rs` concorrentemente neste
+mesmo ambiente, adicionando um sistema de checkpoint (`SECRET_CHECKPOINT_INTERVAL`,
+`secret_last_checkpoint`) que faz uma porta errada no modo Enigma voltar ao
+último checkpoint em vez de reiniciar a rota inteira — uma melhoria de
+gameplay compatível com o cooldown desta rodada (ambos coexistem sem
+conflito; `restart_secret_route` arma o cooldown depois de rebobinar ao
+checkpoint). Isso não fazia parte do pedido original de T4 ("cooldown após
+colisão"), mas foi mantido por não violar nenhum dos sete requisitos e por já
+estar coberto por teste (`a_wrong_door_past_the_first_checkpoint_rewinds_to_it_instead_of_the_start`).
+Uma pequena duplicação incidental (`door_cooldown` sendo armado tanto dentro
+de `restart_secret_route` quanto logo depois, em `apply_maze_choice`) foi
+removida como limpeza pontual.
+
+Verificação final: `cargo build --workspace`, `cargo clippy --workspace
+--all-targets` (0 avisos), `cargo test -p grammar_engine` (47/47) e
+`cargo test -p grammar_quest` (24/24) passam.
 

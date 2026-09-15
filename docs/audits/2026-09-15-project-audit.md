@@ -2,76 +2,66 @@
 
 Data: 2026-09-15
 
-## Atualização (2026-09-15, pós-auditoria)
+## Atualização (2026-09-15, pós-auditoria — estado final)
 
-Este documento é um retrato do projeto na data acima; os achados originais
-abaixo não foram reescritos. Desde então:
+Este documento é um retrato do projeto no início do dia acima; os achados
+originais na seção "Correção e robustez" abaixo não foram reescritos, só
+resolvidos ao longo de várias rodadas de verificação e ajuste no mesmo dia.
+Esta seção resume o estado final consolidado — ver
+`docs/tasks/2026-09-15-audit-adjustments.md` para o histórico completo
+arquivo-por-arquivo de cada rodada.
 
-- A limpeza de código morto já mencionada em `ROADMAP.md`/backlog removeu o
-  wrapper `start_maze()` órfão em `state.rs`, um branch `if/else` vazio no
-  tratamento de colisão de porta em `main.rs`, e a tabela `[dev-dependencies]`
-  vazia de `grammar_engine/Cargo.toml`.
-- **T4 (parcial - só a parte de assets):** `floor_metal.png`, `wall_glass.png`
-  e `tiles/LICENSE-CC0.txt` foram removidos (zero referências confirmadas via
-  `rg 'floor_metal|wall_glass' crates/grammar_quest`) e `ATTRIBUTION.md` foi
-  atualizado. A troca de booleanos por `DoorKind` e o cooldown pós-erro
-  descritos na mesma task **não** foram feitos — seguem pendentes.
-- **T5 (concluído):** `main.rs` (729 linhas) foi dividido em `app.rs`
-  (loop e transições de tela), `gameplay.rs` (colisão/escolhas de porta),
-  `effects.rs` (partículas/ondas/texto flutuante) e `render/{mod,world,portals}.rs`
-  (desenho da arena e das portas). `main.rs` ficou com 32 linhas; o
-  `cargo build --workspace`, `cargo clippy --workspace --all-targets` e as
-  suítes de teste de `grammar_quest`/`grammar_engine` continuam passando sem
-  avisos novos.
-- **T1 (verificado e concluído em 2026-09-15):** o critério de aceite
-  completo foi checado contra o código e testes existentes, não apenas lido.
-  `Grammar::overview()` e a ficha `G = {N, T, P, S}` em
-  `crates/grammar_quest/src/ui/editor.rs` cobrem exatamente o pedido, e os
-  testes `starts_with_a_grammar_preview_for_the_default_example`/
-  `invalid_grammar_text_clears_the_preview`/`valid_edits_refresh_the_preview_live`
-  em `crates/grammar_quest/src/state.rs` provam, executando, que
-  `S -> aS | ab` produz `N={S}`, `T={a,b}`, `S=S`, 2 produções, que entrada
-  inválida limpa o preview, e que os três presets com descrição continuam
-  selecionáveis. Ver `docs/tasks/2026-09-15-audit-adjustments.md` (T1) para o
-  detalhamento arquivo-por-arquivo.
-- **T3 (verificado e concluído em 2026-09-15):** o teste
-  `records_a_full_event_trace_matching_the_pdf_fixture` em
-  `crates/grammar_engine/src/derivation.rs` reproduz o fixture exato do PDF
-  (`S=aS+ab`, escolhas 1/1/2, pops `a/a/a/b`, saída `aaab`, pilha vazia) e
-  `to_regex_trace` devolve `a*ab` com equações/eliminações; o painel lateral
-  (`crates/grammar_quest/src/ui/side_panel.rs`) já mostra tudo isso em seções
-  recolhíveis, não só a regex final. Também concluída.
-- **T2 (verificado, permanece parcial):** confirmado por teste descartável
-  que uma gramática regular mas improdutiva (`S -> aB\nB -> aB`) ainda entra
-  em `ScreenMode::Playing` via `start_free_maze` — só parsing e regularidade
-  são validados antes do commit de estado, não produtividade nem sucesso da
-  conversão para regex (`begin_maze` usa `to_regex_trace(&grammar).ok()`,
-  descartando erros silenciosamente). O `unwrap_or_default()` de regex citado
-  no achado original já não existe. Fechar o resto exige a arquitetura
-  `GrammarSession`/commit atômico completa — não é ajuste cirúrgico, fica
-  pendente.
-- **T6, T7, T8 (verificados, confirmados como não iniciados):** T6 não tem
-  `analysis.rs` nem ponto fixo de produtividade — `S -> aS` ainda gasta as
-  10.000 iterações completas do limite fixo antes de falhar, em vez de
-  detectar de imediato que `S` é improdutivo; não há comparação de
-  equivalência exaustiva regex↔gramática. T7 não tem `tokens.rs`/`viewport.rs`
-  e o layout permanece com `1280.0`/`800.0` fixos em `app.rs`, `main.rs` e
-  `maze.rs`, sem leitura de `screen_width()/screen_height()`. T8 não tem
-  `docs/acceptance-checklist.md`, e o README não fixa versão mínima de
-  Rust/macOS nem tem um roteiro requisito-por-requisito. Nenhum dos três foi
-  atacado como ajuste pequeno — são esforços de engenharia/autoria
-  genuinamente grandes, conforme já era esperado.
-- **Achado extra desta rodada:** `crates/grammar_quest/src/audio.rs` não
-  compilava contra o `macroquad 0.4.16` fixado (`play_sound` exige `&Sound`,
-  o código passava `Sound` por valor) — mascarado por cache de compilação
-  incremental. Corrigido como ajuste cirúrgico (ver detalhe no fim de
-  `docs/tasks/2026-09-15-audit-adjustments.md`) porque bloqueava qualquer
-  build limpo, algo diretamente relevante para T8.
+**Concluído e verificado contra critério de aceite (não só lido):**
+
+- **T1 — ficha `G={N,T,P,S}`:** `Grammar::overview()` e
+  `show_grammar_overview_card` (`crates/grammar_quest/src/ui/editor.rs`)
+  cobrem o pedido; testes provam `S -> aS | ab` → `N={S}`, `T={a,b}`, `S=S`,
+  2 produções, entrada inválida limpa o preview, os três presets continuam
+  selecionáveis com descrição.
+- **T2 — sessão validada antes do labirinto** (escopo reduzido e aprovado
+  pelo usuário, não a arquitetura `GrammarSession` completa cogitada
+  abaixo): `start_free_maze` agora exige `derive_random` e `to_regex_trace`
+  bem-sucedidos antes de mudar para `Playing`; `start_difficulty_maze` já
+  tinha a garantia de produtividade via `derive_random_in_step_range` e
+  ganhou a checagem de regex. Teste
+  `start_free_maze_fails_on_an_unproductive_grammar` prova que
+  `"S -> aB\nB -> aB"` (regular, improdutiva) não entra mais em `Playing`.
+- **T3 — traço de derivação e regex:** `records_a_full_event_trace_matching_the_pdf_fixture`
+  reproduz o fixture exato do PDF; o painel lateral mostra equações e
+  eliminações antes da regex final.
+- **T4 — `DoorKind` e cooldown:** `Door.is_exit: bool` virou
+  `Door.kind: DoorKind` (`Production`/`Exit`, ambas testadas); uma colisão
+  com porta errada arma um cooldown de 0.6s que evita repetir a penalidade a
+  cada frame enquanto o jogador ainda toca a porta. Os assets sem uso
+  (`floor_metal.png`, `wall_glass.png`, `tiles/LICENSE-CC0.txt`) já tinham
+  sido removidos numa rodada anterior.
+- **T5 — `main.rs` dividido:** 729 → 32 linhas, extraído em
+  `app.rs`/`gameplay.rs`/`effects.rs`/`render/{mod,world,portals}.rs`.
+- **T8 — checklist de aceite:** `docs/acceptance-checklist.md` liga cada
+  requisito a uma ação e resultado esperado na UI; README fixa a versão de
+  Rust verificada e referencia o checklist para o smoke test macOS.
+
+**Deliberadamente não iniciado (rejeitado por desproporcional ao escopo
+desta disciplina, decisão do usuário — não uma lacuna esquecida):**
+
+- **T6 — ponto fixo de produtividade e equivalência exaustiva:**
+  `derive_random` continua usando o limite fixo de 10.000 passos como sinal
+  de improdutividade; T2 reaproveita esse mesmo sinal em vez de depender de
+  uma análise dedicada, então a lacuna prática (gramática improdutiva
+  jogável) já está fechada sem essa engenharia extra.
+- **T7 — responsividade/tokens/acessibilidade:** layout permanece fixo em
+  `1280.0`/`800.0`; nenhum `ui/tokens.rs`/`viewport.rs` foi criado.
+
+Achado incidental de uma rodada intermediária: `crates/grammar_quest/src/audio.rs`
+não compilava contra o `macroquad 0.4.16` fixado (`play_sound` exige
+`&Sound`, o código passava `Sound` por valor) — mascarado por cache de
+compilação incremental. Corrigido como ajuste cirúrgico por bloquear
+qualquer build limpo, algo diretamente relevante para T8.
 
 ## Escopo e evidências
 
 Esta auditoria compara todo o projeto com as oito páginas de
-`context/Linguagens Formais - Aula 6 - TD01.pdf`. Foram revisados o código Rust,
+`context/td01-linguagens-formais.pdf`. Foram revisados o código Rust,
 assets, documentos e testes. O PDF foi extraído e também renderizado para
 conferência visual das páginas de requisitos, algoritmo, pilha, derivação,
 eliminação de variáveis e entrega.
@@ -79,9 +69,9 @@ eliminação de variáveis e entrega.
 Verificações executadas:
 
 ```bash
-pdfinfo "context/Linguagens Formais - Aula 6 - TD01.pdf"
-pdftotext -layout "context/Linguagens Formais - Aula 6 - TD01.pdf" -
-pdftoppm -png -r 120 "context/Linguagens Formais - Aula 6 - TD01.pdf" /tmp/grammar-quest-pdf/page
+pdfinfo "context/td01-linguagens-formais.pdf"
+pdftotext -layout "context/td01-linguagens-formais.pdf" -
+pdftoppm -png -r 120 "context/td01-linguagens-formais.pdf" /tmp/grammar-quest-pdf/page
 cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
 ```

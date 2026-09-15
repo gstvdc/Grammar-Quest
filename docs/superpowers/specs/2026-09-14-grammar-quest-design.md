@@ -6,8 +6,8 @@ Status: aprovado (escopo do jogo confirmado pelo usuário: apenas Grammar Maze)
 ## Contexto
 
 Trabalho de Desenvolvimento (TD1) de Linguagens Formais e Autômatos
-(UNESC). Requisitos completos em `context/Linguagens Formais - Aula 6 -
-TD01.pdf` e resumidos em `CLAUDE.md`. A entrega exige código-fonte +
+(UNESC). Requisitos completos em `context/td01-linguagens-formais.pdf`
+e resumidos em `CLAUDE.md`. A entrega exige código-fonte +
 três gramáticas de exemplo selecionáveis pelo próprio software.
 
 Decisão de produto: em vez de um "gerador de sentenças com UI", o
