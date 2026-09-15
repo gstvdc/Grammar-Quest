@@ -9,11 +9,11 @@ mod regex_conversion;
 mod stack;
 mod symbol;
 
-pub use derivation::{Derivation, DerivationState, DerivationStep, derive_random};
+pub use derivation::{Derivation, DerivationEvent, DerivationState, DerivationStep, derive_random};
 pub use distractors::generate_distractors;
 pub use examples::{EXAMPLE_SOURCES, ExampleGrammar, examples};
 pub use grammar::{Grammar, parse_grammar, validate_regular};
-pub use regex_conversion::to_regex;
+pub use regex_conversion::{EliminationStep, RegexTrace, to_regex, to_regex_trace};
 pub use stack::Stack;
 pub use symbol::{GrammarError, Symbol};
 

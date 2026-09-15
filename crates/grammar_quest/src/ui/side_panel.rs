@@ -66,6 +66,9 @@ pub fn show_result(ui: &mut egui::Ui, result: Option<&PanelResult>) {
                 });
 
                 ui.add_space(14.0);
+                show_regex_trace(ui, &result.regex_trace);
+
+                ui.add_space(14.0);
                 ui.label(
                     egui::RichText::new(
                         "Clique em '▶ JOGAR NO LABIRINTO 2D' para derivar passo a passo controlando o personagem.",
@@ -122,6 +125,52 @@ pub fn show_result(ui: &mut egui::Ui, result: Option<&PanelResult>) {
                 });
             });
     }
+}
+
+/// Renders the professor's equation-elimination walkthrough (see
+/// docs/audits/2026-09-15-project-audit.md, T3) behind a collapsible
+/// header so the final regex above stays the headline result.
+fn show_regex_trace(ui: &mut egui::Ui, trace: &grammar_engine::RegexTrace) {
+    if trace.initial_equations.is_empty() {
+        return;
+    }
+    egui::CollapsingHeader::new(
+        egui::RichText::new("Equações e eliminação de variáveis")
+            .color(egui::Color32::from_rgb(160, 140, 200))
+            .size(13.0),
+    )
+    .default_open(false)
+    .show(ui, |ui| {
+        ui.label(
+            egui::RichText::new("Equações iniciais:")
+                .color(egui::Color32::from_rgb(140, 120, 180))
+                .size(11.0),
+        );
+        for (_, equation) in &trace.initial_equations {
+            ui.monospace(
+                egui::RichText::new(equation)
+                    .color(egui::Color32::from_rgb(238, 166, 255))
+                    .size(12.0),
+            );
+        }
+
+        ui.add_space(8.0);
+        ui.label(
+            egui::RichText::new("Eliminação de variáveis (regra de Arden):")
+                .color(egui::Color32::from_rgb(140, 120, 180))
+                .size(11.0),
+        );
+        for step in &trace.eliminations {
+            ui.monospace(
+                egui::RichText::new(format!(
+                    "elimina {} → {}",
+                    step.eliminated, step.resolved_equation
+                ))
+                .color(egui::Color32::from_rgb(52, 255, 180))
+                .size(12.0),
+            );
+        }
+    });
 }
 
 fn typewriter_prefix(text: &str, progress: f32) -> String {

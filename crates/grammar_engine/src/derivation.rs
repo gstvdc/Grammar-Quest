@@ -14,9 +14,32 @@ pub struct DerivationStep {
     pub output_so_far: String,
 }
 
+/// One observable moment of the professor's stack algorithm, in the exact
+/// order it happens, so the UI can replay it without re-deriving instants
+/// from `DerivationStep` snapshots (see docs/audits/2026-09-15-project-audit.md).
+#[derive(Debug, Clone, PartialEq)]
+pub enum DerivationEvent {
+    ProductionChosen {
+        non_terminal: String,
+        alternative_index: usize,
+        production: Vec<Symbol>,
+    },
+    Pushed {
+        stack_after: Vec<Symbol>,
+    },
+    TerminalPopped {
+        terminal: char,
+        output_so_far: String,
+    },
+    Completed {
+        sentence: String,
+    },
+}
+
 #[derive(Debug, Clone)]
 pub struct Derivation {
     pub steps: Vec<DerivationStep>,
+    pub events: Vec<DerivationEvent>,
     pub sentence: String,
 }
 
@@ -25,6 +48,7 @@ pub struct DerivationState {
     pub stack: Stack,
     pub output: String,
     pub steps: Vec<DerivationStep>,
+    pub events: Vec<DerivationEvent>,
 }
 
 impl DerivationState {
@@ -35,6 +59,7 @@ impl DerivationState {
             stack,
             output: String::new(),
             steps: Vec::new(),
+            events: Vec::new(),
         }
     }
 
@@ -49,6 +74,10 @@ impl DerivationState {
         while let Some(Symbol::Terminal(_)) = self.stack.peek() {
             if let Some(Symbol::Terminal(c)) = self.stack.pop() {
                 self.output.push(c);
+                self.events.push(DerivationEvent::TerminalPopped {
+                    terminal: c,
+                    output_so_far: self.output.clone(),
+                });
             }
         }
     }
@@ -66,7 +95,15 @@ impl DerivationState {
             .get(choice)
             .cloned()
             .ok_or_else(|| GrammarError::ParseError("escolha de produção inválida".to_string()))?;
+        self.events.push(DerivationEvent::ProductionChosen {
+            non_terminal: name.clone(),
+            alternative_index: choice,
+            production: production.clone(),
+        });
         self.stack.push_production(&production);
+        self.events.push(DerivationEvent::Pushed {
+            stack_after: self.stack.snapshot_top_first(),
+        });
         self.steps.push(DerivationStep {
             non_terminal: name,
             production,
@@ -74,6 +111,11 @@ impl DerivationState {
             output_so_far: self.output.clone(),
         });
         self.consume_terminals();
+        if self.is_complete() {
+            self.events.push(DerivationEvent::Completed {
+                sentence: self.output.clone(),
+            });
+        }
         Ok(())
     }
 
@@ -109,6 +151,7 @@ pub fn derive_random(grammar: &Grammar) -> Result<Derivation, GrammarError> {
 
     Ok(Derivation {
         steps: state.steps,
+        events: state.events,
         sentence: state.output,
     })
 }

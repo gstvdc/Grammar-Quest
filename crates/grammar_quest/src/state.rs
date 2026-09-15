@@ -1,6 +1,6 @@
 use grammar_engine::{
-    DerivationState, DerivationStep, EXAMPLE_SOURCES, Grammar, derive_random, generate_distractors,
-    parse_grammar, to_regex, validate_regular,
+    DerivationState, DerivationStep, EXAMPLE_SOURCES, Grammar, RegexTrace, derive_random,
+    generate_distractors, parse_grammar, to_regex_trace, validate_regular,
 };
 use rand::seq::SliceRandom;
 
@@ -15,7 +15,16 @@ pub enum ScreenMode {
 pub struct PanelResult {
     pub sentence: String,
     pub regex: String,
+    pub regex_trace: RegexTrace,
     pub steps: Vec<DerivationStep>,
+}
+
+fn empty_regex_trace() -> RegexTrace {
+    RegexTrace {
+        initial_equations: Vec::new(),
+        eliminations: Vec::new(),
+        final_expression: String::new(),
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -87,10 +96,11 @@ impl AppState {
             let grammar = parse_grammar(&self.grammar_text)?;
             validate_regular(&grammar)?;
             let derivation = derive_random(&grammar)?;
-            let regex = to_regex(&grammar)?;
+            let regex_trace = to_regex_trace(&grammar)?;
             Ok::<_, grammar_engine::GrammarError>(PanelResult {
                 sentence: derivation.sentence,
-                regex,
+                regex: regex_trace.final_expression.clone(),
+                regex_trace,
                 steps: derivation.steps,
             })
         })();
@@ -152,7 +162,7 @@ impl AppState {
             elapsed: 0.0,
         });
         if is_complete {
-            let regex = to_regex(grammar).unwrap_or_default();
+            let regex_trace = to_regex_trace(grammar).map_err(|e| e.to_string())?;
             let mut options = generate_distractors(grammar, &state.output, 2)
                 .map_err(|error| error.to_string())?;
             options.push(state.output.clone());
@@ -163,7 +173,8 @@ impl AppState {
                 .unwrap_or(0);
             self.result = Some(PanelResult {
                 sentence: state.output.clone(),
-                regex,
+                regex: regex_trace.final_expression.clone(),
+                regex_trace,
                 steps: state.steps.clone(),
             });
             self.puzzle = Some(SentencePuzzle {
@@ -230,10 +241,11 @@ impl AppState {
 
     pub fn complete_maze(&mut self) {
         if let (Some(grammar), Some(state)) = (&self.current_grammar, &self.derivation_state) {
-            let regex = to_regex(grammar).unwrap_or_default();
+            let regex_trace = to_regex_trace(grammar).unwrap_or_else(|_| empty_regex_trace());
             self.result = Some(PanelResult {
                 sentence: state.output.clone(),
-                regex,
+                regex: regex_trace.final_expression.clone(),
+                regex_trace,
                 steps: state.steps.clone(),
             });
             self.mode = ScreenMode::Won;
@@ -274,6 +286,22 @@ mod tests {
         let result = state.result.expect("valid default grammar generates");
         assert_eq!(result.regex, "a*ab");
         assert!(!result.sentence.is_empty());
+    }
+
+    #[test]
+    fn generation_exposes_the_equation_and_elimination_trace() {
+        let mut state = AppState::new();
+        state.generate();
+        let result = state.result.expect("valid default grammar generates");
+        assert_eq!(
+            result.regex_trace.initial_equations,
+            vec![("S".to_string(), "S=aS+ab".to_string())]
+        );
+        assert_eq!(
+            result.regex_trace.eliminations[0].resolved_equation,
+            "S=a*ab"
+        );
+        assert_eq!(result.regex_trace.final_expression, "a*ab");
     }
 
     #[test]

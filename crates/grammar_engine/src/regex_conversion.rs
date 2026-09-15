@@ -11,42 +11,83 @@ struct Term {
 
 type Equation = Vec<Term>;
 
+/// One non-terminal eliminated via Arden's rule, in elimination order, so
+/// the UI can reproduce the professor's equation-by-equation walkthrough
+/// (see docs/audits/2026-09-15-project-audit.md) instead of only the final
+/// regex.
+#[derive(Debug, Clone, PartialEq)]
+pub struct EliminationStep {
+    pub eliminated: String,
+    pub resolved_equation: String,
+    pub remaining_equations: Vec<(String, String)>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct RegexTrace {
+    pub initial_equations: Vec<(String, String)>,
+    pub eliminations: Vec<EliminationStep>,
+    pub final_expression: String,
+}
+
 /// Converts a regular grammar into an equivalent regular expression using
 /// the classic non-terminal elimination method (Arden's rule applied one
 /// non-terminal at a time: `X = aX + b  =>  X = a*b`). Output uses
 /// standard regex syntax (see Global Constraints in the plan this
 /// implements) so it can be fed straight into the `regex` crate.
 pub fn to_regex(grammar: &Grammar) -> Result<String, GrammarError> {
+    Ok(to_regex_trace(grammar)?.final_expression)
+}
+
+/// Same conversion as [`to_regex`], but keeps every intermediate equation so
+/// callers can display the derivation the PDF walks through by hand, not
+/// just its final answer.
+pub fn to_regex_trace(grammar: &Grammar) -> Result<RegexTrace, GrammarError> {
     let mut equations: HashMap<String, Equation> = grammar
         .non_terminals
         .iter()
         .map(|nt| (nt.clone(), build_equation(grammar, nt)))
         .collect();
 
-    let non_start: Vec<String> = grammar
+    let initial_equations = ordered_display(grammar, &equations);
+
+    let mut elimination_order: Vec<String> = grammar
         .non_terminals
         .iter()
         .filter(|nt| **nt != grammar.start)
         .cloned()
         .collect();
+    elimination_order.push(grammar.start.clone());
 
-    for eliminated in non_start {
+    let mut eliminations = Vec::with_capacity(elimination_order.len());
+    let mut final_terms = None;
+
+    for eliminated in elimination_order {
         let equation = equations.remove(&eliminated).ok_or_else(|| {
             GrammarError::RegexConversionFailed(format!(
                 "equação de '{eliminated}' não encontrada durante a eliminação"
             ))
         })?;
         let resolved = resolve_self_reference(&eliminated, equation);
+        let resolved_equation = format_equation(&eliminated, &resolved);
 
         for equation in equations.values_mut() {
             substitute(equation, &eliminated, &resolved);
         }
+
+        if equations.is_empty() {
+            final_terms = Some(resolved.clone());
+        }
+
+        eliminations.push(EliminationStep {
+            eliminated,
+            resolved_equation,
+            remaining_equations: ordered_display(grammar, &equations),
+        });
     }
 
-    let start_equation = equations.remove(&grammar.start).ok_or_else(|| {
+    let final_terms = final_terms.ok_or_else(|| {
         GrammarError::RegexConversionFailed("equação do símbolo inicial não encontrada".to_string())
     })?;
-    let final_terms = resolve_self_reference(&grammar.start, start_equation);
 
     if final_terms.is_empty() {
         return Err(GrammarError::RegexConversionFailed(
@@ -64,7 +105,42 @@ pub fn to_regex(grammar: &Grammar) -> Result<String, GrammarError> {
         pieces.push(term.coeff);
     }
 
-    Ok(regex_union(&pieces))
+    Ok(RegexTrace {
+        initial_equations,
+        eliminations,
+        final_expression: regex_union(&pieces),
+    })
+}
+
+/// Renders `nt`'s equations in the grammar's declaration order (stable and
+/// human-readable), skipping any already eliminated.
+fn ordered_display(
+    grammar: &Grammar,
+    equations: &HashMap<String, Equation>,
+) -> Vec<(String, String)> {
+    grammar
+        .non_terminals
+        .iter()
+        .filter_map(|nt| {
+            equations
+                .get(nt)
+                .map(|eq| (nt.clone(), format_equation(nt, eq)))
+        })
+        .collect()
+}
+
+/// `S=aS+ab` style rendering matching the PDF's own equation notation
+/// (`+` for union), distinct from the `|`-based regex output.
+fn format_equation(non_terminal: &str, equation: &Equation) -> String {
+    let terms: Vec<String> = equation.iter().map(format_term).collect();
+    format!("{non_terminal}={}", terms.join("+"))
+}
+
+fn format_term(term: &Term) -> String {
+    match &term.target {
+        Some(target) => format!("{}{target}", term.coeff),
+        None => term.coeff.clone(),
+    }
 }
 
 fn build_equation(grammar: &Grammar, non_terminal: &str) -> Equation {
@@ -151,6 +227,34 @@ mod tests {
     use crate::grammar::parse_grammar;
     use crate::symbol::GrammarError;
     use regex::Regex;
+
+    #[test]
+    fn traces_the_pdf_fixture_equation_and_elimination() {
+        let grammar = parse_grammar("S -> aS | ab").unwrap();
+        let trace = to_regex_trace(&grammar).unwrap();
+
+        assert_eq!(
+            trace.initial_equations,
+            vec![("S".to_string(), "S=aS+ab".to_string())]
+        );
+        assert_eq!(trace.eliminations.len(), 1);
+        assert_eq!(trace.eliminations[0].eliminated, "S");
+        assert_eq!(trace.eliminations[0].resolved_equation, "S=a*ab");
+        assert_eq!(trace.final_expression, "a*ab");
+    }
+
+    #[test]
+    fn traces_a_chain_elimination_before_the_start_symbol() {
+        let grammar = parse_grammar("S -> aA\nA -> bA | c").unwrap();
+        let trace = to_regex_trace(&grammar).unwrap();
+
+        assert_eq!(trace.eliminations.len(), 2);
+        assert_eq!(trace.eliminations[0].eliminated, "A");
+        assert_eq!(trace.eliminations[0].resolved_equation, "A=b*c");
+        assert_eq!(trace.eliminations[1].eliminated, "S");
+        assert_eq!(trace.eliminations[1].resolved_equation, "S=ab*c");
+        assert_eq!(trace.final_expression, "ab*c");
+    }
 
     #[test]
     fn rejects_a_self_recursive_grammar_with_no_terminating_alternative() {

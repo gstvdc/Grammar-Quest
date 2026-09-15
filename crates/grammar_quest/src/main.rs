@@ -697,9 +697,18 @@ async fn main() {
                         let live_result = if let (Some(s), Some(g)) =
                             (&state.derivation_state, &state.current_grammar)
                         {
+                            let regex_trace =
+                                grammar_engine::to_regex_trace(g).unwrap_or_else(|_| {
+                                    grammar_engine::RegexTrace {
+                                        initial_equations: Vec::new(),
+                                        eliminations: Vec::new(),
+                                        final_expression: String::new(),
+                                    }
+                                });
                             Some(PanelResult {
                                 sentence: s.output.clone(),
-                                regex: grammar_engine::to_regex(g).unwrap_or_default(),
+                                regex: regex_trace.final_expression.clone(),
+                                regex_trace,
                                 steps: s.steps.clone(),
                             })
                         } else {
