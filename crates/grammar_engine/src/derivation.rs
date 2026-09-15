@@ -1,4 +1,6 @@
-use rand::Rng;
+use std::collections::HashMap;
+
+use rand::{Rng, seq::SliceRandom};
 
 use crate::grammar::Grammar;
 use crate::stack::Stack;
@@ -156,6 +158,110 @@ pub fn derive_random(grammar: &Grammar) -> Result<Derivation, GrammarError> {
     })
 }
 
+/// Generates a terminating derivation whose number of non-terminal
+/// expansions is inside the inclusive range. The search is bounded by the
+/// requested maximum and selects randomly among only paths known to finish.
+pub fn derive_random_in_step_range(
+    grammar: &Grammar,
+    min_steps: usize,
+    max_steps: usize,
+) -> Result<Derivation, GrammarError> {
+    if min_steps == 0 || min_steps > max_steps {
+        return Err(GrammarError::NoDerivationInStepRange {
+            min: min_steps,
+            max: max_steps,
+        });
+    }
+
+    let mut memo = HashMap::new();
+    let possible_lengths: Vec<usize> = (min_steps..=max_steps)
+        .filter(|steps| can_terminate_in_steps(grammar, &grammar.start, *steps, &mut memo))
+        .collect();
+    let mut rng = rand::thread_rng();
+    let Some(&remaining) = possible_lengths.choose(&mut rng) else {
+        return Err(GrammarError::NoDerivationInStepRange {
+            min: min_steps,
+            max: max_steps,
+        });
+    };
+
+    let mut state = DerivationState::new(grammar);
+    let mut steps_left = remaining;
+    while !state.is_complete() {
+        let non_terminal = state
+            .current_non_terminal()
+            .ok_or(GrammarError::DerivationTooLong)?;
+        let alternatives = grammar
+            .alternatives(&non_terminal)
+            .ok_or_else(|| GrammarError::UndefinedNonTerminal(non_terminal.clone()))?;
+        let valid_choices: Vec<usize> = alternatives
+            .iter()
+            .enumerate()
+            .filter_map(|(index, production)| {
+                let finishes_in_range = match production_ends_in(production) {
+                    Some(next) => can_terminate_in_steps(
+                        grammar,
+                        next,
+                        steps_left.saturating_sub(1),
+                        &mut memo,
+                    ),
+                    None => steps_left == 1,
+                };
+                finishes_in_range.then_some(index)
+            })
+            .collect();
+        let choice =
+            *valid_choices
+                .choose(&mut rng)
+                .ok_or(GrammarError::NoDerivationInStepRange {
+                    min: min_steps,
+                    max: max_steps,
+                })?;
+        state.apply_choice(grammar, choice)?;
+        steps_left = steps_left.saturating_sub(1);
+    }
+
+    Ok(Derivation {
+        steps: state.steps,
+        events: state.events,
+        sentence: state.output,
+    })
+}
+
+fn can_terminate_in_steps(
+    grammar: &Grammar,
+    non_terminal: &str,
+    steps: usize,
+    memo: &mut HashMap<(String, usize), bool>,
+) -> bool {
+    if steps == 0 {
+        return false;
+    }
+    let key = (non_terminal.to_owned(), steps);
+    if let Some(result) = memo.get(&key) {
+        return *result;
+    }
+    let result = grammar
+        .alternatives(non_terminal)
+        .is_some_and(|alternatives| {
+            alternatives
+                .iter()
+                .any(|production| match production_ends_in(production) {
+                    Some(next) => can_terminate_in_steps(grammar, next, steps - 1, memo),
+                    None => steps == 1,
+                })
+        });
+    memo.insert(key, result);
+    result
+}
+
+fn production_ends_in(production: &[crate::Symbol]) -> Option<&str> {
+    match production.last() {
+        Some(crate::Symbol::NonTerminal(name)) => Some(name),
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -175,6 +281,25 @@ mod tests {
                 derivation.sentence
             );
         }
+    }
+
+    #[test]
+    fn derives_a_random_terminating_route_within_the_requested_step_range() {
+        let grammar = parse_grammar("S -> aS | ab").unwrap();
+        let derivation = derive_random_in_step_range(&grammar, 4, 6).unwrap();
+
+        assert!((4..=6).contains(&derivation.steps.len()));
+        assert!(derivation.sentence.ends_with('b'));
+    }
+
+    #[test]
+    fn reports_when_a_step_range_cannot_terminate_in_the_grammar() {
+        let grammar = parse_grammar("S -> aA\nA -> b").unwrap();
+
+        assert_eq!(
+            derive_random_in_step_range(&grammar, 3, 5).unwrap_err(),
+            GrammarError::NoDerivationInStepRange { min: 3, max: 5 }
+        );
     }
 
     #[test]

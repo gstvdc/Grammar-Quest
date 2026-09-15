@@ -26,6 +26,10 @@ pub enum GrammarError {
     },
     EmptyGrammar,
     DerivationTooLong,
+    NoDerivationInStepRange {
+        min: usize,
+        max: usize,
+    },
     RegexConversionFailed(String),
 }
 
@@ -48,6 +52,10 @@ impl fmt::Display for GrammarError {
             GrammarError::DerivationTooLong => write!(
                 f,
                 "derivação excedeu o limite de passos (gramática pode não ser produtiva)"
+            ),
+            GrammarError::NoDerivationInStepRange { min, max } => write!(
+                f,
+                "a gramática não possui derivação terminante entre {min} e {max} expansões"
             ),
             GrammarError::RegexConversionFailed(msg) => {
                 write!(f, "falha ao converter para expressão regular: {msg}")

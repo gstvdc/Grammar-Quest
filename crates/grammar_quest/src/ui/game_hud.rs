@@ -1,4 +1,5 @@
-use crate::state::{AppState, ScreenMode};
+use crate::state::{AppState, GameFlow, ScreenMode};
+use crate::ui::theme::animated_button;
 use grammar_engine::Symbol;
 
 pub enum HudAction {
@@ -26,7 +27,7 @@ pub fn show_hud(ctx: &egui::Context, state: &mut AppState) -> HudAction {
                 // Game brand
                 ui.horizontal(|ui| {
                     ui.label(
-                        egui::RichText::new("⚡ GRAMMAR QUEST")
+                        egui::RichText::new("GRAMMAR QUEST")
                             .color(egui::Color32::from_rgb(0, 240, 255))
                             .strong()
                             .size(15.0),
@@ -42,149 +43,50 @@ pub fn show_hud(ctx: &egui::Context, state: &mut AppState) -> HudAction {
                 ui.separator();
                 ui.add_space(12.0);
 
-                // Word generated so far
-                let output = state
-                    .derivation_state
-                    .as_ref()
-                    .map_or("", |s| s.output.as_str());
-
-                ui.label(
-                    egui::RichText::new("PALAVRA:")
-                        .color(egui::Color32::from_rgb(160, 140, 200))
-                        .size(12.0),
-                );
-
-                egui::Frame::NONE
-                    .fill(egui::Color32::from_rgb(16, 28, 38))
-                    .stroke(egui::Stroke::new(
-                        1.0_f32,
-                        egui::Color32::from_rgb(0, 240, 255),
-                    ))
-                    .corner_radius(egui::CornerRadius::same(6))
-                    .inner_margin(egui::Margin::symmetric(10, 4))
-                    .show(ui, |ui| {
-                        ui.monospace(
-                            egui::RichText::new(if output.is_empty() { "ε" } else { output })
-                                .size(16.0)
+                match state.active_flow {
+                    Some(GameFlow::Free) => {
+                        ui.label(
+                            egui::RichText::new("LABIRINTO LIVRE · DERIVAÇÃO POR PILHA")
                                 .color(egui::Color32::from_rgb(52, 255, 180))
+                                .size(11.0)
                                 .strong(),
                         );
-                    });
-
-                ui.add_space(12.0);
-                ui.separator();
-                ui.add_space(12.0);
-
-                // Stack symbols visualization (chips)
-                ui.label(
-                    egui::RichText::new("PILHA:")
-                        .color(egui::Color32::from_rgb(160, 140, 200))
-                        .size(12.0),
-                );
-
-                if state.stack_animation_progress().is_some() {
-                    ui.label(
-                        egui::RichText::new("↑ PUSH")
-                            .color(egui::Color32::from_rgb(250, 204, 21))
-                            .strong()
-                            .size(10.0),
-                    );
-                }
-
-                let snapshot = state.visual_stack_snapshot();
-                let symbol_alpha = state
-                    .stack_animation_progress()
-                    .map_or(255, |progress| (progress * 255.0) as u8);
-                if state.derivation_state.is_some() {
-                    if snapshot.is_empty() {
-                        egui::Frame::NONE
-                            .fill(egui::Color32::from_rgb(35, 28, 12))
-                            .stroke(egui::Stroke::new(
-                                1.0_f32,
-                                egui::Color32::from_rgb(250, 204, 21),
-                            ))
-                            .corner_radius(egui::CornerRadius::same(6))
-                            .inner_margin(egui::Margin::symmetric(8, 3))
-                            .show(ui, |ui| {
-                                ui.label(
-                                    egui::RichText::new("✨ PILHA VAZIA")
-                                        .color(egui::Color32::from_rgb(250, 204, 21))
-                                        .size(12.0)
-                                        .strong(),
-                                );
-                            });
-                    } else {
-                        ui.horizontal(|ui| {
-                            for (idx, sym) in snapshot.iter().enumerate() {
-                                if idx > 0 {
-                                    ui.label(
-                                        egui::RichText::new("·")
-                                            .color(egui::Color32::from_rgb(100, 80, 140)),
-                                    );
-                                }
-                                match sym {
-                                    Symbol::NonTerminal(name) => {
-                                        egui::Frame::NONE
-                                            .fill(egui::Color32::from_rgb(45, 20, 70))
-                                            .stroke(egui::Stroke::new(
-                                                1.0_f32,
-                                                egui::Color32::from_rgb(192, 132, 252),
-                                            ))
-                                            .corner_radius(egui::CornerRadius::same(4))
-                                            .inner_margin(egui::Margin::symmetric(6, 2))
-                                            .show(ui, |ui| {
-                                                ui.monospace(
-                                                    egui::RichText::new(name)
-                                                        .color(
-                                                            egui::Color32::from_rgba_unmultiplied(
-                                                                238,
-                                                                166,
-                                                                255,
-                                                                symbol_alpha,
-                                                            ),
-                                                        )
-                                                        .strong(),
-                                                );
-                                            });
-                                    }
-                                    Symbol::Terminal(ch) => {
-                                        egui::Frame::NONE
-                                            .fill(egui::Color32::from_rgb(15, 35, 45))
-                                            .stroke(egui::Stroke::new(
-                                                1.0_f32,
-                                                egui::Color32::from_rgb(0, 240, 255),
-                                            ))
-                                            .corner_radius(egui::CornerRadius::same(4))
-                                            .inner_margin(egui::Margin::symmetric(6, 2))
-                                            .show(ui, |ui| {
-                                                ui.monospace(
-                                                    egui::RichText::new(ch.to_string())
-                                                        .color(
-                                                            egui::Color32::from_rgba_unmultiplied(
-                                                                74,
-                                                                229,
-                                                                255,
-                                                                symbol_alpha,
-                                                            ),
-                                                        )
-                                                        .strong(),
-                                                );
-                                            });
-                                    }
-                                }
-                            }
-                        });
                     }
+                    Some(GameFlow::SecretChallenge) => {
+                        let (min_steps, max_steps) = state.selected_difficulty.step_range();
+                        ui.label(
+                            egui::RichText::new(format!(
+                                "{} · PORTAS {}/{} · REINÍCIOS {}",
+                                state.selected_difficulty.label(),
+                                state.secret_progress(),
+                                state.secret_total_steps(),
+                                state.restart_count
+                            ))
+                            .color(egui::Color32::from_rgb(250, 204, 21))
+                            .size(11.0)
+                            .strong(),
+                        );
+                        ui.label(
+                            egui::RichText::new(format!("META: {min_steps}–{max_steps}"))
+                                .color(egui::Color32::from_rgb(140, 110, 190))
+                                .size(10.0),
+                        );
+                    }
+                    None => {}
                 }
 
                 // Right side controls
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui
-                        .add(
-                            egui::Button::new("⚙ Laboratório [Esc]")
-                                .fill(egui::Color32::from_rgb(26, 17, 44)),
-                        )
-                        .clicked()
+                    if animated_button(
+                        ui,
+                        "hud_back_to_lab",
+                        egui::vec2(180.0, 28.0),
+                        "⚙ Laboratório [Esc]",
+                        12.0,
+                        egui::Color32::from_rgb(215, 200, 245),
+                        egui::Color32::from_rgb(26, 17, 44),
+                    )
+                    .clicked()
                     {
                         action = HudAction::BackToLab;
                     }
@@ -194,19 +96,29 @@ pub fn show_hud(ctx: &egui::Context, state: &mut AppState) -> HudAction {
                     } else {
                         "📖 Ver Trilha"
                     };
-                    if ui
-                        .add(egui::Button::new(side_text).fill(if state.show_side_panel {
-                            egui::Color32::from_rgb(50, 25, 80)
-                        } else {
-                            egui::Color32::from_rgb(26, 17, 44)
-                        }))
-                        .clicked()
+                    let side_fill = if state.show_side_panel {
+                        egui::Color32::from_rgb(50, 25, 80)
+                    } else {
+                        egui::Color32::from_rgb(26, 17, 44)
+                    };
+                    if animated_button(
+                        ui,
+                        "hud_toggle_side_panel",
+                        egui::vec2(160.0, 28.0),
+                        side_text,
+                        12.0,
+                        egui::Color32::from_rgb(215, 200, 245),
+                        side_fill,
+                    )
+                    .clicked()
                     {
                         state.show_side_panel = !state.show_side_panel;
                     }
                 });
             });
         });
+
+    show_vertical_stack(ctx, state);
 
     // Victory celebration modal
     if state.mode == ScreenMode::Won {
@@ -300,37 +212,32 @@ pub fn show_hud(ctx: &egui::Context, state: &mut AppState) -> HudAction {
                     ui.add_space(22.0);
 
                     ui.horizontal(|ui| {
-                        if ui
-                            .add_sized(
-                                [170.0, 42.0],
-                                egui::Button::new(
-                                    egui::RichText::new("🔄 Jogar Novamente")
-                                        .color(egui::Color32::from_rgb(10, 6, 20))
-                                        .strong()
-                                        .size(14.0),
-                                )
-                                .fill(egui::Color32::from_rgb(52, 255, 180))
-                                .corner_radius(egui::CornerRadius::same(8)),
-                            )
-                            .clicked()
+                        if animated_button(
+                            ui,
+                            "victory_play_again",
+                            egui::vec2(170.0, 42.0),
+                            "🔄 Jogar Novamente",
+                            14.0,
+                            egui::Color32::from_rgb(10, 6, 20),
+                            egui::Color32::from_rgb(52, 255, 180),
+                        )
+                        .clicked()
                         {
                             action = HudAction::PlayAgain;
                         }
 
                         ui.add_space(12.0);
 
-                        if ui
-                            .add_sized(
-                                [170.0, 42.0],
-                                egui::Button::new(
-                                    egui::RichText::new("⚙ Voltar ao Laboratório")
-                                        .color(egui::Color32::WHITE)
-                                        .size(14.0),
-                                )
-                                .fill(egui::Color32::from_rgb(35, 22, 60))
-                                .corner_radius(egui::CornerRadius::same(8)),
-                            )
-                            .clicked()
+                        if animated_button(
+                            ui,
+                            "victory_back_to_lab",
+                            egui::vec2(170.0, 42.0),
+                            "⚙ Voltar ao Laboratório",
+                            14.0,
+                            egui::Color32::WHITE,
+                            egui::Color32::from_rgb(35, 22, 60),
+                        )
+                        .clicked()
                         {
                             action = HudAction::BackToLab;
                         }
@@ -340,4 +247,119 @@ pub fn show_hud(ctx: &egui::Context, state: &mut AppState) -> HudAction {
     }
 
     action
+}
+
+/// Live stack readout, floating below the HUD bar rather than jammed into
+/// it. Rendered top-to-bottom in `snapshot_top_first` order, so the visual
+/// top of the column really is the top of the stack — the one place in the
+/// UI where the metaphor and the picture must not diverge.
+fn show_vertical_stack(ctx: &egui::Context, state: &AppState) {
+    if state.derivation_state.is_none() {
+        return;
+    }
+
+    let snapshot = state.visual_stack_snapshot();
+    let symbol_alpha = state
+        .stack_animation_progress()
+        .map_or(255, |progress| (progress * 255.0) as u8);
+    let pushing = state.stack_animation_progress().is_some();
+
+    egui::Area::new(egui::Id::new("live_stack_panel"))
+        .anchor(egui::Align2::LEFT_TOP, egui::vec2(16.0, 64.0))
+        .show(ctx, |ui| {
+            egui::Frame::NONE
+                .fill(egui::Color32::from_rgba_premultiplied(10, 7, 20, 235))
+                .stroke(egui::Stroke::new(
+                    1.0_f32,
+                    egui::Color32::from_rgb(45, 28, 75),
+                ))
+                .corner_radius(egui::CornerRadius::same(8))
+                .inner_margin(egui::Margin::symmetric(10, 10))
+                .show(ui, |ui| {
+                    ui.set_min_width(84.0);
+                    ui.vertical(|ui| {
+                        ui.horizontal(|ui| {
+                            ui.label(
+                                egui::RichText::new("PILHA")
+                                    .color(egui::Color32::from_rgb(160, 140, 200))
+                                    .strong()
+                                    .size(12.0),
+                            );
+                            if pushing {
+                                ui.label(
+                                    egui::RichText::new("↑ PUSH")
+                                        .color(egui::Color32::from_rgb(250, 204, 21))
+                                        .strong()
+                                        .size(10.0),
+                                );
+                            }
+                        });
+                        ui.add_space(8.0);
+
+                        if snapshot.is_empty() {
+                            egui::Frame::NONE
+                                .fill(egui::Color32::from_rgb(35, 28, 12))
+                                .stroke(egui::Stroke::new(
+                                    1.0_f32,
+                                    egui::Color32::from_rgb(250, 204, 21),
+                                ))
+                                .corner_radius(egui::CornerRadius::same(6))
+                                .inner_margin(egui::Margin::symmetric(8, 3))
+                                .show(ui, |ui| {
+                                    ui.label(
+                                        egui::RichText::new("✨ VAZIA")
+                                            .color(egui::Color32::from_rgb(250, 204, 21))
+                                            .size(12.0)
+                                            .strong(),
+                                    );
+                                });
+                        } else {
+                            for (idx, sym) in snapshot.iter().enumerate() {
+                                let (fill, border, text_rgb) = match sym {
+                                    Symbol::NonTerminal(_) => (
+                                        egui::Color32::from_rgb(45, 20, 70),
+                                        egui::Color32::from_rgb(192, 132, 252),
+                                        (238, 166, 255),
+                                    ),
+                                    Symbol::Terminal(_) => (
+                                        egui::Color32::from_rgb(15, 35, 45),
+                                        egui::Color32::from_rgb(0, 240, 255),
+                                        (74, 229, 255),
+                                    ),
+                                };
+                                egui::Frame::NONE
+                                    .fill(fill)
+                                    .stroke(egui::Stroke::new(1.0_f32, border))
+                                    .corner_radius(egui::CornerRadius::same(4))
+                                    .inner_margin(egui::Margin::symmetric(8, 3))
+                                    .show(ui, |ui| {
+                                        ui.with_layout(
+                                            egui::Layout::top_down(egui::Align::Center),
+                                            |ui| {
+                                                ui.monospace(
+                                                    egui::RichText::new(sym.to_string())
+                                                        .color(
+                                                            egui::Color32::from_rgba_unmultiplied(
+                                                                text_rgb.0,
+                                                                text_rgb.1,
+                                                                text_rgb.2,
+                                                                symbol_alpha,
+                                                            ),
+                                                        )
+                                                        .strong(),
+                                                );
+                                            },
+                                        );
+                                    });
+                                if idx + 1 < snapshot.len() {
+                                    ui.label(
+                                        egui::RichText::new("│")
+                                            .color(egui::Color32::from_rgb(100, 80, 140)),
+                                    );
+                                }
+                            }
+                        }
+                    });
+                });
+        });
 }

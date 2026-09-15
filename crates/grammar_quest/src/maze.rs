@@ -1,14 +1,24 @@
-use crate::state::SentencePuzzle;
 use grammar_engine::{DerivationState, Grammar};
 use macroquad::prelude::*;
+
+/// Every door a player can walk into is exactly one of these — no other
+/// representation coexists (see docs/tasks/2026-09-15-audit-adjustments.md,
+/// T4: this replaces a `bool is_exit` field).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DoorKind {
+    /// Applies `choice_index` as a production choice via `apply_maze_choice`.
+    Production,
+    /// The stack is already empty; walking here already won (see
+    /// `gameplay::update_playing`, which returns early for this kind).
+    Exit,
+}
 
 #[derive(Debug, Clone)]
 pub struct Door {
     pub choice_index: usize,
     pub label: String,
     pub rect: Rect,
-    pub is_exit: bool,
-    pub is_puzzle: bool,
+    pub kind: DoorKind,
 }
 
 #[derive(Debug, Clone)]
@@ -26,7 +36,6 @@ impl Room {
         state: &DerivationState,
         viewport_width: f32,
         viewport_height: f32,
-        puzzle: Option<&SentencePuzzle>,
     ) -> Self {
         // Compute clean dimensions that leave room for top HUD (64px) and margins
         let room_width = (viewport_width - 80.0).clamp(560.0, 920.0);
@@ -96,8 +105,7 @@ impl Room {
                     choice_index: i,
                     label,
                     rect: Rect::new(door_x, door_y, door_width, door_height),
-                    is_exit: false,
-                    is_puzzle: false,
+                    kind: DoorKind::Production,
                 });
             }
 
@@ -112,43 +120,6 @@ impl Room {
                 walls,
                 doors,
                 non_terminal: Some(nt),
-                spawn_pos,
-            }
-        } else if let Some(puzzle) = puzzle {
-            let count = puzzle.options.len().max(1);
-            let door_gap = 24.0;
-            let usable_width = room_width - 2.0 * wall_thickness - 60.0;
-            let door_width = ((usable_width - door_gap * (count as f32 - 1.0)) / count as f32)
-                .clamp(100.0, 220.0);
-            let door_height = 48.0;
-            let total_width = door_width * count as f32 + door_gap * (count as f32 - 1.0);
-            let first_door_x = room_x + (room_width - total_width) / 2.0;
-            let mut prev_x = room_x;
-
-            for (index, sentence) in puzzle.options.iter().enumerate() {
-                let door_x = first_door_x + index as f32 * (door_width + door_gap);
-                if door_x > prev_x {
-                    walls.push(Rect::new(prev_x, room_y, door_x - prev_x, wall_thickness));
-                }
-                prev_x = door_x + door_width;
-                doors.push(Door {
-                    choice_index: index,
-                    label: sentence.clone(),
-                    rect: Rect::new(door_x, room_y, door_width, door_height),
-                    is_exit: false,
-                    is_puzzle: true,
-                });
-            }
-            let end_x = room_x + room_width;
-            if end_x > prev_x {
-                walls.push(Rect::new(prev_x, room_y, end_x - prev_x, wall_thickness));
-            }
-
-            Room {
-                bounds,
-                walls,
-                doors,
-                non_terminal: None,
                 spawn_pos,
             }
         } else {
@@ -171,8 +142,7 @@ impl Room {
                 choice_index: 0,
                 label: "★ SAÍDA DO LABIRINTO (VITÓRIA) ★".to_string(),
                 rect: Rect::new(door_x, door_y, door_width, door_height),
-                is_exit: true,
-                is_puzzle: false,
+                kind: DoorKind::Exit,
             });
 
             Room {
@@ -201,16 +171,15 @@ mod tests {
     fn room_generates_one_door_per_alternative() {
         let grammar = parse_grammar("S -> aS | ab").unwrap();
         let state = DerivationState::new(&grammar);
-        let room = Room::build(&grammar, &state, 1280.0, 800.0, None);
+        let room = Room::build(&grammar, &state, 1280.0, 800.0);
 
         assert_eq!(room.doors.len(), 2);
         assert_eq!(room.doors[0].choice_index, 0);
         assert_eq!(room.doors[0].label, "S → aS");
         assert_eq!(room.doors[1].choice_index, 1);
         assert_eq!(room.doors[1].label, "S → ab");
-        assert!(!room.doors[0].is_exit);
-        assert!(!room.doors[0].is_puzzle);
-        assert!(!room.doors[1].is_exit);
+        assert_eq!(room.doors[0].kind, DoorKind::Production);
+        assert_eq!(room.doors[1].kind, DoorKind::Production);
     }
 
     #[test]
@@ -220,9 +189,9 @@ mod tests {
         state.apply_choice(&grammar, 0).unwrap();
         assert!(state.is_complete());
 
-        let room = Room::build(&grammar, &state, 1280.0, 800.0, None);
+        let room = Room::build(&grammar, &state, 1280.0, 800.0);
         assert_eq!(room.doors.len(), 1);
-        assert!(room.doors[0].is_exit);
+        assert_eq!(room.doors[0].kind, DoorKind::Exit);
         assert_eq!(room.doors[0].label, "★ SAÍDA DO LABIRINTO (VITÓRIA) ★");
     }
 
@@ -230,7 +199,7 @@ mod tests {
     fn collision_detects_player_at_door() {
         let grammar = parse_grammar("S -> a").unwrap();
         let state = DerivationState::new(&grammar);
-        let room = Room::build(&grammar, &state, 1280.0, 800.0, None);
+        let room = Room::build(&grammar, &state, 1280.0, 800.0);
 
         let door_rect = room.doors[0].rect;
         let player_at_door = Rect::new(door_rect.x + 10.0, door_rect.y + 10.0, 32.0, 32.0);
@@ -246,7 +215,7 @@ mod tests {
             parse_grammar("S -> aA | bB | cC | dD | eE\nA -> a\nB -> b\nC -> c\nD -> d\nE -> e")
                 .unwrap();
         let state = DerivationState::new(&grammar);
-        let room = Room::build(&grammar, &state, 1280.0, 800.0, None);
+        let room = Room::build(&grammar, &state, 1280.0, 800.0);
 
         assert_eq!(room.doors.len(), 5);
         for pair in room.doors.windows(2) {
@@ -261,28 +230,10 @@ mod tests {
     fn room_fits_a_narrow_game_viewport() {
         let grammar = parse_grammar("S -> aS | ab").unwrap();
         let state = DerivationState::new(&grammar);
-        let room = Room::build(&grammar, &state, 800.0, 600.0, None);
+        let room = Room::build(&grammar, &state, 800.0, 600.0);
 
         assert!(room.bounds.x >= 20.0);
         assert!(room.bounds.x + room.bounds.w <= 780.0);
         assert!(room.bounds.y >= 60.0);
-    }
-
-    #[test]
-    fn completed_room_turns_sentence_options_into_puzzle_doors() {
-        let grammar = parse_grammar("S -> a").unwrap();
-        let mut state = DerivationState::new(&grammar);
-        state.apply_choice(&grammar, 0).unwrap();
-        let puzzle = SentencePuzzle {
-            options: vec!["a".to_string(), "b".to_string(), "c".to_string()],
-            correct_index: 0,
-            mistakes: 0,
-        };
-        let room = Room::build(&grammar, &state, 1280.0, 800.0, Some(&puzzle));
-
-        assert_eq!(room.doors.len(), 3);
-        assert!(room.doors.iter().all(|door| door.is_puzzle));
-        assert!(room.doors.iter().all(|door| !door.is_exit));
-        assert_eq!(room.doors[0].label, "a");
     }
 }

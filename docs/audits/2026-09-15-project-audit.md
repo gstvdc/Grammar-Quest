@@ -2,6 +2,72 @@
 
 Data: 2026-09-15
 
+## Atualização (2026-09-15, pós-auditoria)
+
+Este documento é um retrato do projeto na data acima; os achados originais
+abaixo não foram reescritos. Desde então:
+
+- A limpeza de código morto já mencionada em `ROADMAP.md`/backlog removeu o
+  wrapper `start_maze()` órfão em `state.rs`, um branch `if/else` vazio no
+  tratamento de colisão de porta em `main.rs`, e a tabela `[dev-dependencies]`
+  vazia de `grammar_engine/Cargo.toml`.
+- **T4 (parcial - só a parte de assets):** `floor_metal.png`, `wall_glass.png`
+  e `tiles/LICENSE-CC0.txt` foram removidos (zero referências confirmadas via
+  `rg 'floor_metal|wall_glass' crates/grammar_quest`) e `ATTRIBUTION.md` foi
+  atualizado. A troca de booleanos por `DoorKind` e o cooldown pós-erro
+  descritos na mesma task **não** foram feitos — seguem pendentes.
+- **T5 (concluído):** `main.rs` (729 linhas) foi dividido em `app.rs`
+  (loop e transições de tela), `gameplay.rs` (colisão/escolhas de porta),
+  `effects.rs` (partículas/ondas/texto flutuante) e `render/{mod,world,portals}.rs`
+  (desenho da arena e das portas). `main.rs` ficou com 32 linhas; o
+  `cargo build --workspace`, `cargo clippy --workspace --all-targets` e as
+  suítes de teste de `grammar_quest`/`grammar_engine` continuam passando sem
+  avisos novos.
+- **T1 (verificado e concluído em 2026-09-15):** o critério de aceite
+  completo foi checado contra o código e testes existentes, não apenas lido.
+  `Grammar::overview()` e a ficha `G = {N, T, P, S}` em
+  `crates/grammar_quest/src/ui/editor.rs` cobrem exatamente o pedido, e os
+  testes `starts_with_a_grammar_preview_for_the_default_example`/
+  `invalid_grammar_text_clears_the_preview`/`valid_edits_refresh_the_preview_live`
+  em `crates/grammar_quest/src/state.rs` provam, executando, que
+  `S -> aS | ab` produz `N={S}`, `T={a,b}`, `S=S`, 2 produções, que entrada
+  inválida limpa o preview, e que os três presets com descrição continuam
+  selecionáveis. Ver `docs/tasks/2026-09-15-audit-adjustments.md` (T1) para o
+  detalhamento arquivo-por-arquivo.
+- **T3 (verificado e concluído em 2026-09-15):** o teste
+  `records_a_full_event_trace_matching_the_pdf_fixture` em
+  `crates/grammar_engine/src/derivation.rs` reproduz o fixture exato do PDF
+  (`S=aS+ab`, escolhas 1/1/2, pops `a/a/a/b`, saída `aaab`, pilha vazia) e
+  `to_regex_trace` devolve `a*ab` com equações/eliminações; o painel lateral
+  (`crates/grammar_quest/src/ui/side_panel.rs`) já mostra tudo isso em seções
+  recolhíveis, não só a regex final. Também concluída.
+- **T2 (verificado, permanece parcial):** confirmado por teste descartável
+  que uma gramática regular mas improdutiva (`S -> aB\nB -> aB`) ainda entra
+  em `ScreenMode::Playing` via `start_free_maze` — só parsing e regularidade
+  são validados antes do commit de estado, não produtividade nem sucesso da
+  conversão para regex (`begin_maze` usa `to_regex_trace(&grammar).ok()`,
+  descartando erros silenciosamente). O `unwrap_or_default()` de regex citado
+  no achado original já não existe. Fechar o resto exige a arquitetura
+  `GrammarSession`/commit atômico completa — não é ajuste cirúrgico, fica
+  pendente.
+- **T6, T7, T8 (verificados, confirmados como não iniciados):** T6 não tem
+  `analysis.rs` nem ponto fixo de produtividade — `S -> aS` ainda gasta as
+  10.000 iterações completas do limite fixo antes de falhar, em vez de
+  detectar de imediato que `S` é improdutivo; não há comparação de
+  equivalência exaustiva regex↔gramática. T7 não tem `tokens.rs`/`viewport.rs`
+  e o layout permanece com `1280.0`/`800.0` fixos em `app.rs`, `main.rs` e
+  `maze.rs`, sem leitura de `screen_width()/screen_height()`. T8 não tem
+  `docs/acceptance-checklist.md`, e o README não fixa versão mínima de
+  Rust/macOS nem tem um roteiro requisito-por-requisito. Nenhum dos três foi
+  atacado como ajuste pequeno — são esforços de engenharia/autoria
+  genuinamente grandes, conforme já era esperado.
+- **Achado extra desta rodada:** `crates/grammar_quest/src/audio.rs` não
+  compilava contra o `macroquad 0.4.16` fixado (`play_sound` exige `&Sound`,
+  o código passava `Sound` por valor) — mascarado por cache de compilação
+  incremental. Corrigido como ajuste cirúrgico (ver detalhe no fim de
+  `docs/tasks/2026-09-15-audit-adjustments.md`) porque bloqueava qualquer
+  build limpo, algo diretamente relevante para T8.
+
 ## Escopo e evidências
 
 Esta auditoria compara todo o projeto com as oito páginas de

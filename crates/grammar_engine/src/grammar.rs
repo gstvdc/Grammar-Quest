@@ -1,5 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
+use rand::Rng;
+
 use crate::symbol::{GrammarError, Symbol};
 
 #[derive(Debug, Clone)]
@@ -10,9 +12,69 @@ pub struct Grammar {
     pub start: String,
 }
 
+/// Human-readable projection of `G={N,T,P,S}` (see AGENTS.md requirement 1
+/// and docs/tasks/2026-09-15-audit-adjustments.md, T1), so the UI can show
+/// the four components literally instead of leaving the grader to infer
+/// them from the raw production text.
+#[derive(Debug, Clone, PartialEq)]
+pub struct GrammarOverview {
+    pub non_terminals: String,
+    pub terminals: String,
+    pub start: String,
+    pub production_lines: Vec<String>,
+    pub production_count: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RandomGrammarConfig {
+    pub non_terminal_count: usize,
+    pub alternatives_per_non_terminal: usize,
+    pub min_terminals_per_production: usize,
+    pub max_terminals_per_production: usize,
+    pub terminal_count: usize,
+}
+
 impl Grammar {
     pub fn alternatives(&self, non_terminal: &str) -> Option<&Vec<Vec<Symbol>>> {
         self.productions.get(non_terminal)
+    }
+
+    pub fn overview(&self) -> GrammarOverview {
+        let production_lines: Vec<String> = self
+            .non_terminals
+            .iter()
+            .filter_map(|nt| {
+                self.alternatives(nt).map(|alts| {
+                    let rhs = alts
+                        .iter()
+                        .map(|alt| format_alternative(alt))
+                        .collect::<Vec<_>>()
+                        .join(" | ");
+                    format!("{nt} -> {rhs}")
+                })
+            })
+            .collect();
+        let production_count = self
+            .non_terminals
+            .iter()
+            .filter_map(|nt| self.alternatives(nt))
+            .map(|alts| alts.len())
+            .sum();
+
+        GrammarOverview {
+            non_terminals: format!("{{{}}}", self.non_terminals.join(",")),
+            terminals: format!(
+                "{{{}}}",
+                self.terminals
+                    .iter()
+                    .map(|c| c.to_string())
+                    .collect::<Vec<_>>()
+                    .join(",")
+            ),
+            start: self.start.clone(),
+            production_lines,
+            production_count,
+        }
     }
 }
 
@@ -81,6 +143,62 @@ pub fn parse_grammar(text: &str) -> Result<Grammar, GrammarError> {
         terminals,
         productions,
         start,
+    })
+}
+
+/// Builds a productive right-linear grammar for challenge sessions. Every
+/// non-terminal has a terminal-only exit and continuation alternatives, so a
+/// caller can safely request short or long stack derivations.
+pub fn generate_random_regular_grammar(
+    config: RandomGrammarConfig,
+) -> Result<Grammar, GrammarError> {
+    if !(2..=26).contains(&config.non_terminal_count)
+        || !(2..=8).contains(&config.alternatives_per_non_terminal)
+        || !(1..=26).contains(&config.terminal_count)
+        || config.min_terminals_per_production == 0
+        || config.min_terminals_per_production > config.max_terminals_per_production
+    {
+        return Err(GrammarError::ParseError(
+            "configuração inválida para gramática aleatória".to_string(),
+        ));
+    }
+
+    let mut non_terminals = vec!["S".to_string()];
+    non_terminals.extend(
+        ('A'..='Z')
+            .filter(|letter| *letter != 'S')
+            .take(config.non_terminal_count - 1)
+            .map(|letter| letter.to_string()),
+    );
+    let terminals: Vec<char> = ('a'..='z').take(config.terminal_count).collect();
+    let mut rng = rand::thread_rng();
+    let mut productions = HashMap::new();
+
+    for non_terminal in &non_terminals {
+        let alternatives = (0..config.alternatives_per_non_terminal)
+            .map(|index| {
+                let terminal_len = rng.gen_range(
+                    config.min_terminals_per_production..=config.max_terminals_per_production,
+                );
+                let mut production = (0..terminal_len)
+                    .map(|_| Symbol::Terminal(terminals[rng.gen_range(0..terminals.len())]))
+                    .collect::<Vec<_>>();
+                if index > 0 {
+                    production.push(Symbol::NonTerminal(
+                        non_terminals[rng.gen_range(0..non_terminals.len())].clone(),
+                    ));
+                }
+                production
+            })
+            .collect();
+        productions.insert(non_terminal.clone(), alternatives);
+    }
+
+    Ok(Grammar {
+        non_terminals,
+        terminals,
+        productions,
+        start: "S".to_string(),
     })
 }
 
@@ -156,6 +274,46 @@ fn format_alternative(alt: &[Symbol]) -> String {
 mod tests {
     use super::*;
     use crate::symbol::Symbol;
+
+    #[test]
+    fn overview_exposes_ordered_n_t_p_s_for_the_pdf_example() {
+        let grammar = parse_grammar("S -> aS | ab").unwrap();
+        let overview = grammar.overview();
+        assert_eq!(overview.non_terminals, "{S}");
+        assert_eq!(overview.terminals, "{a,b}");
+        assert_eq!(overview.start, "S");
+        assert_eq!(overview.production_lines, vec!["S -> aS | ab".to_string()]);
+        assert_eq!(overview.production_count, 2);
+    }
+
+    #[test]
+    fn overview_groups_productions_per_non_terminal_in_declaration_order() {
+        let grammar = parse_grammar("S -> aA\nS -> b\nA -> a").unwrap();
+        let overview = grammar.overview();
+        assert_eq!(overview.non_terminals, "{S,A}");
+        assert_eq!(
+            overview.production_lines,
+            vec!["S -> aA | b".to_string(), "A -> a".to_string()]
+        );
+        assert_eq!(overview.production_count, 3);
+    }
+
+    #[test]
+    fn generated_challenge_grammar_is_regular_and_has_the_requested_shape() {
+        let config = RandomGrammarConfig {
+            non_terminal_count: 5,
+            alternatives_per_non_terminal: 4,
+            min_terminals_per_production: 2,
+            max_terminals_per_production: 4,
+            terminal_count: 4,
+        };
+        let grammar = generate_random_regular_grammar(config).unwrap();
+
+        assert_eq!(grammar.non_terminals.len(), 5);
+        assert_eq!(grammar.terminals.len(), 4);
+        assert_eq!(grammar.overview().production_count, 20);
+        assert!(validate_regular(&grammar).is_ok());
+    }
 
     #[test]
     fn parses_pdf_example_grammar() {

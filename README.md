@@ -105,6 +105,12 @@ cargo test -p grammar_engine
 crates/
   grammar_engine/   parser, validation, stack, derivation, regex, distractors
   grammar_quest/    application state, maze, player, and graphical interface
+    src/
+      app.rs          macroquad loop, screen transitions, egui composition
+      gameplay.rs      player movement, door collision, choice resolution
+      effects.rs       particles, shockwaves, floating text
+      render/          arena/grid/walls (world.rs) and doors/signage (portals.rs)
+      state.rs, maze.rs, player.rs, ui/
 context/             original assignment
 docs/
   audits/            compliance and quality audits
