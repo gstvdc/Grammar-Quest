@@ -40,6 +40,8 @@ cp "$ROOT_DIR/crates/grammar_quest/assets/fonts/OFL.txt" \
     "$APP/Contents/Resources/Licenses/PressStart2P-OFL.txt"
 cp "$ROOT_DIR/crates/grammar_quest/assets/ATTRIBUTION.md" \
     "$APP/Contents/Resources/Licenses/ATTRIBUTION.md"
+codesign --force --deep --sign - "$APP"
+codesign --verify --deep --strict "$APP"
 
 rm -rf "$ICONSET"
 echo "Created $APP"
