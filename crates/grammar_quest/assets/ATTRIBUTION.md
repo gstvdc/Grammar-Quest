@@ -1,5 +1,11 @@
 # Asset Attribution and Licenses
 
+## Branding
+
+- **File:** `brand/grammar-quest-logo.png`
+- **Creator:** Gustavo da Cunha Constante
+- **Rights:** © 2026 Gustavo da Cunha Constante. All rights reserved.
+
 ## Typography
 
 - **File:** `fonts/PressStart2P-Regular.ttf`

@@ -74,3 +74,13 @@ aviso na primeira abertura.
 Veja [`docs/technical.md`](docs/technical.md) para a arquitetura e a estrutura
 dos pacotes. As licenças dos recursos estão em
 [`crates/grammar_quest/assets/ATTRIBUTION.md`](crates/grammar_quest/assets/ATTRIBUTION.md).
+
+---
+
+<p align="center">
+  <img src="crates/grammar_quest/assets/brand/grammar-quest-logo.png" alt="Emblema do Grammar Quest" width="96">
+  <br>
+  <sub>© 2026 Gustavo da Cunha Constante — criador do projeto Grammar Quest.</sub>
+  <br>
+  <sub>Projeto acadêmico de Linguagens Formais e Autômatos. Os recursos de terceiros seguem suas respectivas licenças, listadas nas <a href="crates/grammar_quest/assets/ATTRIBUTION.md">atribuições</a>.</sub>
+</p>
