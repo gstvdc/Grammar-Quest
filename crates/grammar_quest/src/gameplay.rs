@@ -4,7 +4,7 @@ use crate::audio::Sfx;
 use crate::effects::EffectsState;
 use crate::maze::{DoorKind, Room};
 use crate::player::Player;
-use crate::state::{AppState, MazeChoiceOutcome};
+use crate::state::{AppState, GameFlow, MazeChoiceOutcome};
 
 /// Advances player movement, footstep dust, and door-collision resolution
 /// for one frame of `ScreenMode::Playing`. Mutates `state` only through
@@ -72,7 +72,7 @@ pub fn update_playing(
     };
 
     if outcome == MazeChoiceOutcome::Restarted {
-        sfx.play_door_wrong();
+        sfx.play_door_wrong(state.master_volume);
         effects.spawn_spark_burst(door_center, Color::from_rgba(255, 90, 130, 255));
         let message = if state.secret_last_checkpoint() > 0 {
             format!(
@@ -90,13 +90,26 @@ pub fn update_playing(
     }
 
     if outcome == MazeChoiceOutcome::Completed {
-        sfx.play_victory();
+        sfx.play_victory(state.master_volume);
         effects.push_shockwave(door_center, Color::from_rgba(52, 255, 180, 220), 380.0);
     } else {
         if outcome == MazeChoiceOutcome::Advanced {
-            sfx.play_door_correct();
+            sfx.play_door_correct(state.master_volume);
         }
-        let new_room = Room::build(g, s, 1280.0, 800.0);
+        let (left_panel_width, right_panel_width) = match (state.show_side_panel, state.active_flow)
+        {
+            (true, Some(GameFlow::SecretChallenge)) => (180.0, 310.0),
+            (true, _) => (340.0, 0.0),
+            (false, _) => (0.0, 0.0),
+        };
+        let new_room = Room::build_with_panels(
+            g,
+            s,
+            screen_width(),
+            screen_height(),
+            left_panel_width,
+            right_panel_width,
+        );
         plyr.pos = new_room.spawn_pos;
         *current_room = Some(new_room);
     }

@@ -3,79 +3,50 @@ use crate::state::{AppState, PanelResult};
 pub fn show_result(ui: &mut egui::Ui, result: Option<&PanelResult>) {
     if let Some(result) = result {
         egui::Frame::NONE
-            .fill(egui::Color32::from_rgb(18, 12, 34))
+            .fill(egui::Color32::from_rgb(20, 13, 36))
             .stroke(egui::Stroke::new(
-                1.5_f32,
-                egui::Color32::from_rgb(52, 255, 180),
+                2.0_f32,
+                egui::Color32::from_rgb(255, 206, 97),
             ))
-            .corner_radius(egui::CornerRadius::same(16))
-            .inner_margin(egui::Margin::same(28))
+            .corner_radius(egui::CornerRadius::same(2))
+            .inner_margin(egui::Margin::same(22))
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.label(
                         egui::RichText::new("✓ DERIVAÇÃO CONCLUÍDA")
-                            .color(egui::Color32::from_rgb(52, 255, 180))
+                            .color(egui::Color32::from_rgb(255, 206, 97))
                             .strong()
                             .size(13.0),
                     );
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         ui.label(
                             egui::RichText::new(format!("{} passos aplicados", result.steps.len()))
-                                .color(egui::Color32::from_rgb(150, 130, 190))
+                                .color(egui::Color32::from_rgb(255, 230, 158))
                                 .size(12.0),
                         );
                     });
                 });
 
-                ui.add_space(18.0);
-                ui.label(
-                    egui::RichText::new("Sentença Gerada pela Gramática:")
-                        .color(egui::Color32::from_rgb(160, 140, 200))
-                        .size(13.0),
-                );
-                ui.label(
-                    egui::RichText::new(&result.sentence)
-                        .size(48.0)
-                        .color(egui::Color32::from_rgb(0, 240, 255))
-                        .strong(),
+                ui.add_space(14.0);
+                result_value_card(
+                    ui,
+                    "SENTENÇA SORTEADA",
+                    &result.sentence,
+                    34.0,
+                    egui::Color32::from_rgb(0, 240, 255),
                 );
 
-                ui.add_space(16.0);
-                ui.horizontal(|ui| {
-                    ui.label(
-                        egui::RichText::new("Expressão Regular:")
-                            .color(egui::Color32::from_rgb(160, 140, 200))
-                            .size(13.0),
-                    );
-                    egui::Frame::NONE
-                        .fill(egui::Color32::from_rgb(28, 16, 50))
-                        .stroke(egui::Stroke::new(
-                            1.0_f32,
-                            egui::Color32::from_rgb(192, 132, 252),
-                        ))
-                        .corner_radius(egui::CornerRadius::same(6))
-                        .inner_margin(egui::Margin::symmetric(10, 4))
-                        .show(ui, |ui| {
-                            ui.monospace(
-                                egui::RichText::new(&result.regex)
-                                    .size(17.0)
-                                    .color(egui::Color32::from_rgb(238, 166, 255))
-                                    .strong(),
-                            );
-                        });
-                });
+                ui.add_space(12.0);
+                result_value_card(
+                    ui,
+                    "EXPRESSÃO REGULAR",
+                    &result.regex,
+                    22.0,
+                    egui::Color32::from_rgb(255, 230, 158),
+                );
 
                 ui.add_space(14.0);
                 show_regex_trace(ui, &result.regex_trace);
-
-                ui.add_space(14.0);
-                ui.label(
-                    egui::RichText::new(
-                        "Escolha um modo de jogo à esquerda e clique no botão de iniciar para derivar passo a passo controlando o personagem.",
-                    )
-                    .color(egui::Color32::from_rgb(130, 110, 170))
-                    .size(12.0),
-                );
             });
     } else {
         let logo_id = egui::Id::new("grammar_quest_brand_logo");
@@ -127,6 +98,27 @@ pub fn show_result(ui: &mut egui::Ui, result: Option<&PanelResult>) {
             });
         });
     }
+}
+
+fn result_value_card(ui: &mut egui::Ui, label: &str, value: &str, size: f32, color: egui::Color32) {
+    egui::Frame::NONE
+        .fill(egui::Color32::from_rgb(12, 8, 24))
+        .stroke(egui::Stroke::new(
+            1.0_f32,
+            egui::Color32::from_rgb(255, 206, 97),
+        ))
+        .corner_radius(egui::CornerRadius::same(2))
+        .inner_margin(egui::Margin::symmetric(16, 12))
+        .show(ui, |ui| {
+            ui.label(
+                egui::RichText::new(label)
+                    .color(egui::Color32::from_rgb(180, 160, 220))
+                    .size(11.0)
+                    .strong(),
+            );
+            ui.add_space(4.0);
+            ui.label(egui::RichText::new(value).size(size).color(color).strong());
+        });
 }
 
 /// Renders the professor's equation-elimination walkthrough (see
@@ -181,15 +173,15 @@ fn typewriter_prefix(text: &str, progress: f32) -> String {
 }
 
 pub fn show_side_panel(ctx: &egui::Context, result: Option<&PanelResult>) {
-    egui::SidePanel::right("derivation_trace")
+    egui::SidePanel::left("derivation_trace")
         .resizable(false)
-        .default_width(310.0)
+        .default_width(320.0)
         .frame(
             egui::Frame::side_top_panel(&ctx.style())
-                .fill(egui::Color32::from_rgb(12, 8, 22))
+                .fill(egui::Color32::from_rgb(45, 27, 78))
                 .stroke(egui::Stroke::new(
                     1.0_f32,
-                    egui::Color32::from_rgb(45, 28, 75),
+                    egui::Color32::from_rgb(255, 206, 97),
                 ))
                 .inner_margin(egui::Margin::symmetric(16, 14)),
         )
@@ -277,19 +269,19 @@ pub fn show_side_panel(ctx: &egui::Context, result: Option<&PanelResult>) {
                                         );
                                     });
 
-                                    ui.add_space(4.0);
-                                    ui.label(
-                                        egui::RichText::new(format!(
-                                            "Saída parcial: \"{}\"",
-                                            if step.output_so_far.is_empty() {
-                                                "ε"
-                                            } else {
-                                                &step.output_so_far
-                                            }
-                                        ))
-                                        .color(egui::Color32::from_rgb(52, 255, 180))
-                                        .size(11.0),
-                                    );
+                    ui.add_space(4.0);
+                    ui.label(
+                        egui::RichText::new(format!(
+                            "Saída parcial: \"{}\"",
+                            if step.output_so_far.is_empty() {
+                                "ε"
+                            } else {
+                                &step.output_so_far
+                            }
+                        ))
+                        .color(egui::Color32::from_rgb(52, 255, 180))
+                        .size(11.0),
+                    );
 
                                     let stack: String = step
                                         .stack_after

@@ -1,5 +1,12 @@
 # Asset Attribution and Licenses
 
+## Typography
+
+- **File:** `fonts/PressStart2P-Regular.ttf`
+- **Source:** [Google Fonts — Press Start 2P](https://fonts.google.com/specimen/Press+Start+2P)
+- **License:** SIL Open Font License 1.1; the canonical local copy is
+  `fonts/OFL.txt`.
+
 ## Player Sprites
 
 - **Source:** [CraftPix.net](https://craftpix.net/freebies/free-swordsman-1-3-level-pixel-top-down-sprite-character/)

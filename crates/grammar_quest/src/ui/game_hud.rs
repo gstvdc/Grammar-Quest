@@ -11,14 +11,14 @@ pub enum HudAction {
 pub fn show_hud(ctx: &egui::Context, state: &mut AppState) -> HudAction {
     let mut action = HudAction::None;
 
-    // Sleek floating glassmorphism top bar
+    // Retro pixel HUD matching the menu and preparation screens.
     egui::TopBottomPanel::top("maze_hud_bar")
         .frame(
             egui::Frame::side_top_panel(&ctx.style())
-                .fill(egui::Color32::from_rgba_premultiplied(10, 7, 20, 240))
+                .fill(egui::Color32::from_rgba_premultiplied(45, 27, 78, 245))
                 .stroke(egui::Stroke::new(
                     1.0_f32,
-                    egui::Color32::from_rgb(45, 28, 75),
+                    egui::Color32::from_rgb(255, 206, 97),
                 ))
                 .inner_margin(egui::Margin::symmetric(16, 10)),
         )
@@ -28,13 +28,13 @@ pub fn show_hud(ctx: &egui::Context, state: &mut AppState) -> HudAction {
                 ui.horizontal(|ui| {
                     ui.label(
                         egui::RichText::new("GRAMMAR QUEST")
-                            .color(egui::Color32::from_rgb(0, 240, 255))
+                            .color(egui::Color32::from_rgb(255, 206, 97))
                             .strong()
                             .size(15.0),
                     );
                     ui.label(
                         egui::RichText::new("LABIRINTO 2D")
-                            .color(egui::Color32::from_rgb(140, 110, 190))
+                            .color(egui::Color32::from_rgb(255, 230, 158))
                             .size(11.0),
                     );
                 });
@@ -47,7 +47,7 @@ pub fn show_hud(ctx: &egui::Context, state: &mut AppState) -> HudAction {
                     Some(GameFlow::Free) => {
                         ui.label(
                             egui::RichText::new("LABIRINTO LIVRE · DERIVAÇÃO POR PILHA")
-                                .color(egui::Color32::from_rgb(52, 255, 180))
+                                .color(egui::Color32::from_rgb(255, 230, 158))
                                 .size(11.0)
                                 .strong(),
                         );
@@ -81,10 +81,10 @@ pub fn show_hud(ctx: &egui::Context, state: &mut AppState) -> HudAction {
                         ui,
                         "hud_back_to_lab",
                         egui::vec2(180.0, 28.0),
-                        "⚙ Laboratório [Esc]",
+                        "← Preparação [Esc]",
                         12.0,
-                        egui::Color32::from_rgb(215, 200, 245),
-                        egui::Color32::from_rgb(26, 17, 44),
+                        egui::Color32::from_rgb(26, 15, 46),
+                        egui::Color32::from_rgb(255, 206, 97),
                     )
                     .clicked()
                     {
@@ -138,6 +138,7 @@ pub fn show_hud(ctx: &egui::Context, state: &mut AppState) -> HudAction {
                     .inner_margin(egui::Margin::same(24)),
             )
             .show(ctx, |ui| {
+                ui.set_min_width(360.0);
                 ui.vertical_centered(|ui| {
                     ui.label(
                         egui::RichText::new("🏆 VITÓRIA NO LABIRINTO!")
@@ -211,12 +212,12 @@ pub fn show_hud(ctx: &egui::Context, state: &mut AppState) -> HudAction {
 
                     ui.add_space(22.0);
 
-                    ui.horizontal(|ui| {
+                    ui.vertical_centered(|ui| {
                         if animated_button(
                             ui,
                             "victory_play_again",
-                            egui::vec2(170.0, 42.0),
-                            "🔄 Jogar Novamente",
+                            egui::vec2(300.0, 42.0),
+                            "▶ JOGAR NOVAMENTE",
                             14.0,
                             egui::Color32::from_rgb(10, 6, 20),
                             egui::Color32::from_rgb(52, 255, 180),
@@ -226,13 +227,13 @@ pub fn show_hud(ctx: &egui::Context, state: &mut AppState) -> HudAction {
                             action = HudAction::PlayAgain;
                         }
 
-                        ui.add_space(12.0);
+                        ui.add_space(10.0);
 
                         if animated_button(
                             ui,
                             "victory_back_to_lab",
-                            egui::vec2(170.0, 42.0),
-                            "⚙ Voltar ao Laboratório",
+                            egui::vec2(300.0, 42.0),
+                            "← VOLTAR AO LABORATÓRIO",
                             14.0,
                             egui::Color32::WHITE,
                             egui::Color32::from_rgb(35, 22, 60),
@@ -249,8 +250,8 @@ pub fn show_hud(ctx: &egui::Context, state: &mut AppState) -> HudAction {
     action
 }
 
-/// Live stack readout, floating below the HUD bar rather than jammed into
-/// it. Rendered top-to-bottom in `snapshot_top_first` order, so the visual
+/// Live stack readout, docked at the bottom of the formal-trace column.
+/// Rendered top-to-bottom in `snapshot_top_first` order, so the visual
 /// top of the column really is the top of the stack — the one place in the
 /// UI where the metaphor and the picture must not diverge.
 fn show_vertical_stack(ctx: &egui::Context, state: &AppState) {
@@ -259,13 +260,9 @@ fn show_vertical_stack(ctx: &egui::Context, state: &AppState) {
     }
 
     let snapshot = state.visual_stack_snapshot();
-    let symbol_alpha = state
-        .stack_animation_progress()
-        .map_or(255, |progress| (progress * 255.0) as u8);
-    let pushing = state.stack_animation_progress().is_some();
 
     egui::Area::new(egui::Id::new("live_stack_panel"))
-        .anchor(egui::Align2::LEFT_TOP, egui::vec2(16.0, 64.0))
+        .anchor(egui::Align2::LEFT_BOTTOM, egui::vec2(16.0, -16.0))
         .show(ctx, |ui| {
             egui::Frame::NONE
                 .fill(egui::Color32::from_rgba_premultiplied(10, 7, 20, 235))
@@ -276,24 +273,14 @@ fn show_vertical_stack(ctx: &egui::Context, state: &AppState) {
                 .corner_radius(egui::CornerRadius::same(8))
                 .inner_margin(egui::Margin::symmetric(10, 10))
                 .show(ui, |ui| {
-                    ui.set_min_width(84.0);
+                    ui.set_min_width(120.0);
                     ui.vertical(|ui| {
-                        ui.horizontal(|ui| {
-                            ui.label(
-                                egui::RichText::new("PILHA")
-                                    .color(egui::Color32::from_rgb(160, 140, 200))
-                                    .strong()
-                                    .size(12.0),
-                            );
-                            if pushing {
-                                ui.label(
-                                    egui::RichText::new("↑ PUSH")
-                                        .color(egui::Color32::from_rgb(250, 204, 21))
-                                        .strong()
-                                        .size(10.0),
-                                );
-                            }
-                        });
+                        ui.label(
+                            egui::RichText::new("PILHA")
+                                .color(egui::Color32::from_rgb(160, 140, 200))
+                                .strong()
+                                .size(12.0),
+                        );
                         ui.add_space(8.0);
 
                         if snapshot.is_empty() {
@@ -306,11 +293,14 @@ fn show_vertical_stack(ctx: &egui::Context, state: &AppState) {
                                 .corner_radius(egui::CornerRadius::same(6))
                                 .inner_margin(egui::Margin::symmetric(8, 3))
                                 .show(ui, |ui| {
-                                    ui.label(
-                                        egui::RichText::new("✨ VAZIA")
-                                            .color(egui::Color32::from_rgb(250, 204, 21))
-                                            .size(12.0)
-                                            .strong(),
+                                    ui.add_sized(
+                                        egui::vec2(104.0, 18.0),
+                                        egui::Label::new(
+                                            egui::RichText::new("✨ VAZIA")
+                                                .color(egui::Color32::from_rgb(250, 204, 21))
+                                                .size(12.0)
+                                                .strong(),
+                                        ),
                                     );
                                 });
                         } else {
@@ -336,17 +326,15 @@ fn show_vertical_stack(ctx: &egui::Context, state: &AppState) {
                                         ui.with_layout(
                                             egui::Layout::top_down(egui::Align::Center),
                                             |ui| {
-                                                ui.monospace(
-                                                    egui::RichText::new(sym.to_string())
-                                                        .color(
-                                                            egui::Color32::from_rgba_unmultiplied(
-                                                                text_rgb.0,
-                                                                text_rgb.1,
-                                                                text_rgb.2,
-                                                                symbol_alpha,
-                                                            ),
-                                                        )
-                                                        .strong(),
+                                                ui.add_sized(
+                                                    egui::vec2(104.0, 18.0),
+                                                    egui::Label::new(
+                                                        egui::RichText::new(sym.to_string())
+                                                            .color(egui::Color32::from_rgb(
+                                                                text_rgb.0, text_rgb.1, text_rgb.2,
+                                                            ))
+                                                            .strong(),
+                                                    ),
                                                 );
                                             },
                                         );

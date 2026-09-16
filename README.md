@@ -30,7 +30,9 @@ exact reproduction steps and expected output.
 
 ## How it works
 
-In the laboratory, select an example or enter productions such as:
+The game starts in the main menu. Choose **Jogar**, then select **Livre** to
+work with an example or your own grammar, or **Enigma** to solve a generated
+route. In the laboratory, select an example or enter productions such as:
 
 ```text
 S -> aS | ab
@@ -44,7 +46,7 @@ empty word.
   the sentence, stack, derivation steps, and regular expression.
 - **Play the maze:** each door applies an alternative for the non-terminal at
   the top of the stack; picking one performs that step of the derivation with
-  the character. A single mode toggle in the editor picks which maze starts:
+  the character. The main menu selects which maze starts:
   - **Livre:** uses the example or productions currently in the editor; the
     sentence is visible the whole time.
   - **Modo Enigma:** generates a fresh random grammar sized to the chosen
@@ -75,7 +77,10 @@ Controls:
 
 - `WASD` or arrow keys: move;
 - `Tab`: show or hide the formal derivation trace;
-- `Esc`: return to the laboratory; from the laboratory, quit the application.
+- `Esc`: return from the maze to the laboratory, or from the laboratory to
+  the main menu.
+- **Opções** in the main menu: adjusts session-only volume and shows asset
+  credits.
 
 ### macOS app shortcut
 

@@ -9,18 +9,18 @@ pub struct ExampleGrammar {
 
 pub const EXAMPLE_SOURCES: [ExampleGrammar; 3] = [
     ExampleGrammar {
-        name: "Exemplo do professor",
-        description: "S -> aS | ab — o exemplo do slide da disciplina.",
+        name: "Trilha Inicial",
+        description: "S -> aS | ab — comece pela gramática do exemplo da disciplina.",
         source: "S -> aS | ab",
     },
     ExampleGrammar {
-        name: "Cadeia a-b-c",
-        description: "Uma sequência de a's, seguida de b's, terminando em c.",
+        name: "Sequência a-b-c",
+        description: "Uma rota de a's, seguida de b's, terminando em c.",
         source: "S -> aS | aA\nA -> bA | c",
     },
     ExampleGrammar {
-        name: "Labirinto de bifurcações",
-        description: "Três não-terminais interligados — pensado para o modo labirinto.",
+        name: "Encruzilhada Regular",
+        description: "Três não-terminais interligados para explorar o labirinto.",
         source: "S -> aA | bB\nA -> bA | aC\nB -> aB | bC\nC -> a",
     },
 ];
@@ -55,6 +55,15 @@ mod tests {
     #[test]
     fn ships_exactly_three_examples() {
         assert_eq!(EXAMPLE_SOURCES.len(), 3);
+    }
+
+    #[test]
+    fn examples_have_clear_learning_focused_names() {
+        let names: Vec<_> = EXAMPLE_SOURCES.iter().map(|example| example.name).collect();
+        assert_eq!(
+            names,
+            vec!["Trilha Inicial", "Sequência a-b-c", "Encruzilhada Regular"]
+        );
     }
 
     #[test]

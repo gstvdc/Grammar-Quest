@@ -224,19 +224,19 @@ fn is_valid_non_terminal_name(name: &str) -> bool {
 }
 
 fn parse_alternative(alt_text: &str) -> Result<Vec<Symbol>, GrammarError> {
-    if alt_text == "&" || alt_text.is_empty() {
+    if alt_text == "&" || alt_text == "ε" || alt_text.is_empty() {
         return Ok(Vec::new());
     }
 
     let mut symbols = Vec::new();
     for c in alt_text.chars() {
-        if c.is_ascii_lowercase() {
+        if c.is_ascii_lowercase() || c.is_ascii_digit() {
             symbols.push(Symbol::Terminal(c));
         } else if c.is_ascii_uppercase() {
             symbols.push(Symbol::NonTerminal(c.to_string()));
         } else {
             return Err(GrammarError::ParseError(format!(
-                "símbolo inválido '{c}' em '{alt_text}' (use apenas a-z para terminais e A-Z para não-terminais)"
+                "símbolo inválido '{c}' em '{alt_text}' (use a-z ou 0-9 para terminais e A-Z para não-terminais)"
             )));
         }
     }
@@ -244,18 +244,48 @@ fn parse_alternative(alt_text: &str) -> Result<Vec<Symbol>, GrammarError> {
 }
 
 pub fn validate_regular(grammar: &Grammar) -> Result<(), GrammarError> {
+    let mut orientation = None;
     for non_terminal in &grammar.non_terminals {
         let alternatives = grammar.productions.get(non_terminal).into_iter().flatten();
         for alt in alternatives {
-            for (index, symbol) in alt.iter().enumerate() {
-                let is_last = index + 1 == alt.len();
-                if matches!(symbol, Symbol::NonTerminal(_)) && !is_last {
+            let non_terminal_positions: Vec<_> = alt
+                .iter()
+                .enumerate()
+                .filter_map(|(index, symbol)| {
+                    matches!(symbol, Symbol::NonTerminal(_)).then_some(index)
+                })
+                .collect();
+            if non_terminal_positions.len() > 1 {
+                return Err(GrammarError::NotRegular {
+                    non_terminal: non_terminal.clone(),
+                    alternative: format_alternative(alt),
+                    reason: "uma produção regular pode conter no máximo um não-terminal"
+                        .to_string(),
+                });
+            }
+            if let Some(index) = non_terminal_positions.first() {
+                let current = if *index == 0 {
+                    "esquerda"
+                } else if *index + 1 == alt.len() {
+                    "direita"
+                } else {
                     return Err(GrammarError::NotRegular {
                         non_terminal: non_terminal.clone(),
                         alternative: format_alternative(alt),
-                        reason: "não-terminal só pode aparecer como último símbolo (gramática regular à direita)".to_string(),
+                        reason: "o não-terminal deve estar no início ou no fim da produção"
+                            .to_string(),
+                    });
+                };
+                if let Some(existing) = orientation
+                    && existing != current
+                {
+                    return Err(GrammarError::NotRegular {
+                        non_terminal: non_terminal.clone(),
+                        alternative: format_alternative(alt),
+                        reason: "não misture produções regulares à esquerda e à direita na mesma gramática".to_string(),
                     });
                 }
+                orientation = Some(current);
             }
         }
     }
@@ -284,6 +314,14 @@ mod tests {
         assert_eq!(overview.start, "S");
         assert_eq!(overview.production_lines, vec!["S -> aS | ab".to_string()]);
         assert_eq!(overview.production_count, 2);
+    }
+
+    #[test]
+    fn accepts_left_linear_grammar_with_numeric_terminals() {
+        let grammar = parse_grammar("S -> S1 | S2 | S0 | ε").unwrap();
+
+        assert_eq!(grammar.terminals, vec!['0', '1', '2']);
+        assert!(validate_regular(&grammar).is_ok());
     }
 
     #[test]

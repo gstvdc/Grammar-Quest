@@ -412,4 +412,17 @@ mod tests {
         assert_eq!(state.current_non_terminal(), None);
         assert_eq!(state.steps.len(), 2);
     }
+
+    #[test]
+    fn derives_a_left_linear_numeric_grammar_with_the_stack() {
+        let grammar = parse_grammar("S -> S1 | S2 | S0 | ε").unwrap();
+        let mut state = DerivationState::new(&grammar);
+
+        state.apply_choice(&grammar, 0).unwrap();
+        state.apply_choice(&grammar, 1).unwrap();
+        state.apply_choice(&grammar, 3).unwrap();
+
+        assert!(state.is_complete());
+        assert_eq!(state.output, "21");
+    }
 }

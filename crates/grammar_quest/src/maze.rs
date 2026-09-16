@@ -31,17 +31,35 @@ pub struct Room {
 }
 
 impl Room {
+    #[cfg(test)]
     pub fn build(
         grammar: &Grammar,
         state: &DerivationState,
         viewport_width: f32,
         viewport_height: f32,
     ) -> Self {
-        // Compute clean dimensions that leave room for top HUD (64px) and margins
-        let room_width = (viewport_width - 80.0).clamp(560.0, 920.0);
+        Self::build_with_panels(grammar, state, viewport_width, viewport_height, 0.0, 0.0)
+    }
+
+    pub fn build_with_panels(
+        grammar: &Grammar,
+        state: &DerivationState,
+        viewport_width: f32,
+        viewport_height: f32,
+        left_panel_width: f32,
+        right_panel_width: f32,
+    ) -> Self {
+        // The game canvas is anchored to the usable corridor rather than
+        // centred in the window, so ultrawide displays do not get a dead area
+        // beside the map or let the arena run beneath a HUD panel.
+        let left_margin = if left_panel_width > 0.0 { 40.0 } else { 20.0 };
+        let right_margin = if right_panel_width > 0.0 { 40.0 } else { 20.0 };
+        let room_width =
+            (viewport_width - left_panel_width - right_panel_width - left_margin - right_margin)
+                .max(560.0);
         let room_height = (viewport_height - 140.0).clamp(420.0, 600.0);
 
-        let room_x = (viewport_width - room_width) / 2.0;
+        let room_x = left_panel_width + left_margin;
         let room_y = 90.0; // Starts below the 64px HUD with clean breathing room
         let bounds = Rect::new(room_x, room_y, room_width, room_height);
 
@@ -235,5 +253,15 @@ mod tests {
         assert!(room.bounds.x >= 20.0);
         assert!(room.bounds.x + room.bounds.w <= 780.0);
         assert!(room.bounds.y >= 60.0);
+    }
+
+    #[test]
+    fn room_stays_between_the_fixed_game_panels() {
+        let grammar = parse_grammar("S -> aS | ab").unwrap();
+        let state = DerivationState::new(&grammar);
+        let room = Room::build_with_panels(&grammar, &state, 1440.0, 900.0, 180.0, 310.0);
+
+        assert_eq!(room.bounds.x, 220.0);
+        assert!(room.bounds.x + room.bounds.w <= 1_090.0);
     }
 }

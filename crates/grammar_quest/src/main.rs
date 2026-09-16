@@ -18,6 +18,7 @@ fn window_conf() -> Conf {
         window_title: "Grammar Quest — Grammar Maze 2D".to_owned(),
         window_width: 1280,
         window_height: 800,
+        fullscreen: true,
         icon: Some(Icon {
             small: WINDOW_ICON_SMALL,
             medium: WINDOW_ICON_MEDIUM,

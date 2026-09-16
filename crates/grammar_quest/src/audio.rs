@@ -31,29 +31,29 @@ impl Sfx {
         }
     }
 
-    pub fn play_door_correct(&self) {
-        play_once(&self.door_correct);
+    pub fn play_door_correct(&self, volume: f32) {
+        play_once(&self.door_correct, volume);
     }
 
-    pub fn play_door_wrong(&self) {
-        play_once(&self.door_wrong);
+    pub fn play_door_wrong(&self, volume: f32) {
+        play_once(&self.door_wrong, volume);
     }
 
-    pub fn play_victory(&self) {
-        play_once(&self.victory);
+    pub fn play_victory(&self, volume: f32) {
+        play_once(&self.victory, volume);
     }
 
-    pub fn play_click(&self) {
-        play_once(&self.click);
+    pub fn play_click(&self, volume: f32) {
+        play_once(&self.click, volume);
     }
 }
 
-fn play_once(sound: &Sound) {
+fn play_once(sound: &Sound, volume: f32) {
     audio::play_sound(
         sound,
         PlaySoundParams {
             looped: false,
-            volume: 1.0,
+            volume: volume.clamp(0.0, 1.0),
         },
     );
 }

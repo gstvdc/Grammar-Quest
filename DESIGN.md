@@ -89,6 +89,15 @@ components:
 
 **Creative North Star: "The Derivation Terminal"**
 
+### Main menu
+
+The opening screen intentionally has its own 16-bit RPG identity: dark plum,
+gold sparks, a red-and-gold pixel wordmark, and a geometric stack guardian.
+It uses Press Start 2P for this short, atmospheric entry point. The
+laboratory and maze retain the synthwave system below, so formal notation and
+the shared derivation panel stay readable and visually consistent where the
+assignment is demonstrated.
+
 Grammar Quest presents a formal-languages proof as a piece of hostile-but-beautiful lab equipment: a dark synthwave/cyberpunk console where every visual element is doing double duty as an academic instrument. The laboratory screen is a "Grammar Studio" control panel; the maze is a holographic arena where gateways (doors) are literally the grammar's productions, rendered as glowing threshold portals with floating marquee signage. The vocabulary is explicit in the source itself — "Sleek dark cyber slate," "glassmorphism," "Holographic Summoning Sigil," "cyber grid lines," "Gateway threshold energy pad" — this is a committed identity, not incidental defaults.
 
 Density is deliberately generous: egui's default dark visuals are fully overridden (`ui/theme.rs`) rather than left at stock, and every panel, chip, and card carries its own fill + 1–2.5px glow stroke rather than relying on borders alone. There are no photographic or illustrated assets driving the palette — color is 100% code-defined (`egui::Color32::from_rgb`, macroquad `Color::from_rgba`), which makes the token list below the actual, complete, and exhaustive palette rather than a sample.

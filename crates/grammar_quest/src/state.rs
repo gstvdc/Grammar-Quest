@@ -6,6 +6,8 @@ use grammar_engine::{
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScreenMode {
+    MainMenu,
+    Options,
     Laboratory,
     Playing,
     Won,
@@ -73,18 +75,18 @@ impl Difficulty {
                 terminal_count: 4,
             },
             Self::Extreme => RandomGrammarConfig {
-                non_terminal_count: 7,
-                alternatives_per_non_terminal: 4,
+                non_terminal_count: 5,
+                alternatives_per_non_terminal: 3,
                 min_terminals_per_production: 2,
-                max_terminals_per_production: 5,
-                terminal_count: 5,
+                max_terminals_per_production: 4,
+                terminal_count: 4,
             },
             Self::Impossible => RandomGrammarConfig {
-                non_terminal_count: 9,
-                alternatives_per_non_terminal: 5,
-                min_terminals_per_production: 3,
-                max_terminals_per_production: 6,
-                terminal_count: 6,
+                non_terminal_count: 6,
+                alternatives_per_non_terminal: 3,
+                min_terminals_per_production: 2,
+                max_terminals_per_production: 4,
+                terminal_count: 4,
             },
         }
     }
@@ -103,14 +105,29 @@ pub enum GameFlow {
     SecretChallenge,
 }
 
-/// Which of the two maze flows the editor's mode toggle currently selects.
-/// Purely a UI concern — `GameFlow` is what actually drives gameplay rules
-/// once a maze starts.
+/// Which maze flow the main menu selected. Purely a UI concern — `GameFlow`
+/// drives gameplay rules after a maze starts.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum PlayMode {
     #[default]
     Free,
     Enigma,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum MainMenuStage {
+    #[default]
+    Root,
+    ChooseMode,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum LaboratoryStage {
+    #[default]
+    Setup,
+    ExampleSelection,
+    GrammarEditor,
+    FormalResult,
 }
 
 #[derive(Debug, Clone)]
@@ -147,6 +164,10 @@ pub struct AppState {
     pub grammar_is_regular: Option<bool>,
     pub selected_difficulty: Difficulty,
     pub play_mode: PlayMode,
+    pub menu_stage: MainMenuStage,
+    pub laboratory_stage: LaboratoryStage,
+    pub master_volume: f32,
+    pub fullscreen: bool,
     pub result: Option<PanelResult>,
     pub error_message: Option<String>,
     pub current_grammar: Option<Grammar>,
@@ -165,13 +186,17 @@ pub struct AppState {
 impl AppState {
     pub fn new() -> Self {
         let mut state = Self {
-            mode: ScreenMode::Laboratory,
+            mode: ScreenMode::MainMenu,
             grammar_text: EXAMPLE_SOURCES[0].source.to_owned(),
             selected_example: Some(0),
             grammar_preview: None,
             grammar_is_regular: None,
             selected_difficulty: Difficulty::Easy,
             play_mode: PlayMode::default(),
+            menu_stage: MainMenuStage::default(),
+            laboratory_stage: LaboratoryStage::default(),
+            master_volume: 1.0,
+            fullscreen: true,
             result: None,
             error_message: None,
             current_grammar: None,
@@ -198,6 +223,10 @@ impl AppState {
         self.refresh_grammar_preview();
     }
 
+    pub fn set_fullscreen(&mut self, fullscreen: bool) {
+        self.fullscreen = fullscreen;
+    }
+
     pub fn select_example(&mut self, index: usize) {
         if let Some(example) = EXAMPLE_SOURCES.get(index) {
             self.grammar_text = example.source.to_owned();
@@ -205,6 +234,49 @@ impl AppState {
             self.result = None;
             self.error_message = None;
             self.refresh_grammar_preview();
+        }
+    }
+
+    pub fn open_mode_selection(&mut self) {
+        self.menu_stage = MainMenuStage::ChooseMode;
+    }
+
+    pub fn select_play_mode(&mut self, play_mode: PlayMode) {
+        self.play_mode = play_mode;
+        self.mode = ScreenMode::Laboratory;
+        self.laboratory_stage = LaboratoryStage::Setup;
+    }
+
+    pub fn open_laboratory_stage(&mut self, stage: LaboratoryStage) {
+        self.laboratory_stage = stage;
+    }
+
+    pub fn return_to_setup(&mut self) {
+        self.laboratory_stage = LaboratoryStage::Setup;
+    }
+
+    pub fn open_options(&mut self) {
+        self.mode = ScreenMode::Options;
+    }
+
+    pub fn back_to_main_menu(&mut self) {
+        self.mode = ScreenMode::MainMenu;
+        self.menu_stage = MainMenuStage::Root;
+    }
+
+    pub fn set_master_volume(&mut self, volume: f32) {
+        self.master_volume = volume.clamp(0.0, 1.0);
+    }
+
+    pub fn handle_escape(&mut self) {
+        match self.mode {
+            ScreenMode::MainMenu => {}
+            ScreenMode::Options => self.back_to_main_menu(),
+            ScreenMode::Laboratory if self.laboratory_stage != LaboratoryStage::Setup => {
+                self.return_to_setup()
+            }
+            ScreenMode::Laboratory => self.back_to_main_menu(),
+            ScreenMode::Playing | ScreenMode::Won => self.back_to_lab(),
         }
     }
 
@@ -256,7 +328,7 @@ impl AppState {
 
         match outcome {
             Ok((grammar, regex_trace)) => {
-                self.begin_maze(grammar, GameFlow::Free, None, regex_trace);
+                self.begin_maze(grammar, GameFlow::Free, None, Some(regex_trace));
                 Ok(())
             }
             Err(err) => {
@@ -269,41 +341,34 @@ impl AppState {
 
     pub fn start_difficulty_maze(&mut self) -> Result<(), String> {
         self.error_message = None;
-        let outcome =
-            (|| -> Result<(Grammar, SecretRoute, RegexTrace), grammar_engine::GrammarError> {
-                let grammar =
-                    generate_random_regular_grammar(self.selected_difficulty.grammar_config())?;
-                validate_regular(&grammar)?;
-                let (min_steps, max_steps) = self.selected_difficulty.step_range();
-                let target = derive_random_in_step_range(&grammar, min_steps, max_steps)?;
-                // `derive_random_in_step_range` already performed an exhaustive
-                // reachability search to find this route, which is a stronger
-                // productivity proof than a single `derive_random` probe would be
-                // (a uniform-random walk here could hit an unrelated unproductive
-                // branch and falsely reject an otherwise-playable grammar) — no
-                // extra productivity check needed for this flow.
-                let regex_trace = to_regex_trace(&grammar)?;
-                let choices = target
-                    .events
-                    .iter()
-                    .filter_map(|event| match event {
-                        DerivationEvent::ProductionChosen {
-                            alternative_index, ..
-                        } => Some(*alternative_index),
-                        _ => None,
-                    })
-                    .collect();
-                Ok((grammar, SecretRoute { choices }, regex_trace))
-            })();
+        let outcome = (|| -> Result<(Grammar, SecretRoute), grammar_engine::GrammarError> {
+            let grammar =
+                generate_random_regular_grammar(self.selected_difficulty.grammar_config())?;
+            validate_regular(&grammar)?;
+            let (min_steps, max_steps) = self.selected_difficulty.step_range();
+            let target = derive_random_in_step_range(&grammar, min_steps, max_steps)?;
+            // `derive_random_in_step_range` already performed an exhaustive
+            // reachability search to find this route, which is a stronger
+            // productivity proof than a single `derive_random` probe would be
+            // (a uniform-random walk here could hit an unrelated unproductive
+            // branch and falsely reject an otherwise-playable grammar) — no
+            // extra productivity check needed for this flow.
+            let choices = target
+                .events
+                .iter()
+                .filter_map(|event| match event {
+                    DerivationEvent::ProductionChosen {
+                        alternative_index, ..
+                    } => Some(*alternative_index),
+                    _ => None,
+                })
+                .collect();
+            Ok((grammar, SecretRoute { choices }))
+        })();
 
         match outcome {
-            Ok((grammar, secret_route, regex_trace)) => {
-                self.begin_maze(
-                    grammar,
-                    GameFlow::SecretChallenge,
-                    Some(secret_route),
-                    regex_trace,
-                );
+            Ok((grammar, secret_route)) => {
+                self.begin_maze(grammar, GameFlow::SecretChallenge, Some(secret_route), None);
                 Ok(())
             }
             Err(err) => {
@@ -324,10 +389,10 @@ impl AppState {
         grammar: Grammar,
         flow: GameFlow,
         secret_route: Option<SecretRoute>,
-        regex_trace: RegexTrace,
+        regex_trace: Option<RegexTrace>,
     ) {
         self.derivation_state = Some(DerivationState::new(&grammar));
-        self.session_regex_trace = Some(regex_trace);
+        self.session_regex_trace = regex_trace;
         self.current_grammar = Some(grammar);
         self.mode = ScreenMode::Playing;
         self.active_flow = Some(flow);
@@ -420,12 +485,6 @@ impl AppState {
             .map_or_else(Vec::new, |state| state.stack.snapshot_top_first())
     }
 
-    pub fn stack_animation_progress(&self) -> Option<f32> {
-        self.stack_animation
-            .as_ref()
-            .map(|animation| (animation.elapsed / STACK_ANIMATION_SECONDS).clamp(0.0, 1.0))
-    }
-
     pub fn live_panel_result(&self) -> Option<PanelResult> {
         let state = self.derivation_state.as_ref()?;
         let regex_trace = self.session_regex_trace.clone()?;
@@ -512,7 +571,82 @@ mod tests {
         let state = AppState::new();
         assert_eq!(state.grammar_text, "S -> aS | ab");
         assert_eq!(state.selected_example, Some(0));
+        assert_eq!(state.mode, ScreenMode::MainMenu);
+    }
+
+    #[test]
+    fn starts_at_the_main_menu_root() {
+        let state = AppState::new();
+        assert_eq!(state.mode, ScreenMode::MainMenu);
+        assert_eq!(state.menu_stage, MainMenuStage::Root);
+    }
+
+    #[test]
+    fn selecting_a_mode_opens_its_laboratory() {
+        let mut state = AppState::new();
+        state.open_mode_selection();
+        state.select_play_mode(PlayMode::Enigma);
+
+        assert_eq!(state.play_mode, PlayMode::Enigma);
         assert_eq!(state.mode, ScreenMode::Laboratory);
+    }
+
+    #[test]
+    fn returning_to_main_menu_resets_the_menu_stage() {
+        let mut state = AppState::new();
+        state.open_mode_selection();
+        state.back_to_main_menu();
+
+        assert_eq!(state.mode, ScreenMode::MainMenu);
+        assert_eq!(state.menu_stage, MainMenuStage::Root);
+    }
+
+    #[test]
+    fn master_volume_is_clamped() {
+        let mut state = AppState::new();
+        state.set_master_volume(2.0);
+        assert_eq!(state.master_volume, 1.0);
+        state.set_master_volume(-0.5);
+        assert_eq!(state.master_volume, 0.0);
+    }
+
+    #[test]
+    fn fullscreen_preference_can_switch_to_windowed_mode() {
+        let mut state = AppState::new();
+
+        state.set_fullscreen(false);
+
+        assert!(!state.fullscreen);
+    }
+
+    #[test]
+    fn escape_returns_the_laboratory_to_the_main_menu() {
+        let mut state = AppState::new();
+        state.select_play_mode(PlayMode::Free);
+        state.handle_escape();
+
+        assert_eq!(state.mode, ScreenMode::MainMenu);
+    }
+
+    #[test]
+    fn escape_returns_playing_and_won_states_to_the_laboratory() {
+        let mut state = AppState::new();
+        state.mode = ScreenMode::Playing;
+        state.handle_escape();
+        assert_eq!(state.mode, ScreenMode::Laboratory);
+
+        state.mode = ScreenMode::Won;
+        state.handle_escape();
+        assert_eq!(state.mode, ScreenMode::Laboratory);
+    }
+
+    #[test]
+    fn escape_returns_options_to_the_main_menu() {
+        let mut state = AppState::new();
+        state.open_options();
+        state.handle_escape();
+
+        assert_eq!(state.mode, ScreenMode::MainMenu);
     }
 
     #[test]
@@ -618,6 +752,7 @@ mod tests {
     #[test]
     fn start_free_maze_fails_on_invalid_grammar() {
         let mut state = AppState::new();
+        state.select_play_mode(PlayMode::Free);
         state.set_grammar_text("S -> aB".to_string());
         assert!(state.start_free_maze().is_err());
         assert_eq!(state.mode, ScreenMode::Laboratory);
@@ -631,6 +766,7 @@ mod tests {
         // fix this silently reached ScreenMode::Playing with a discarded
         // regex-trace failure (see docs/tasks/2026-09-15-audit-adjustments.md).
         let mut state = AppState::new();
+        state.select_play_mode(PlayMode::Free);
         state.set_grammar_text("S -> aB\nB -> aB".to_string());
         assert!(state.start_free_maze().is_err());
         assert_eq!(state.mode, ScreenMode::Laboratory);

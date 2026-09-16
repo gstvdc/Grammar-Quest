@@ -213,7 +213,7 @@ fn regex_union(parts: &[String]) -> String {
 fn kleene_star(alpha: &str) -> String {
     if alpha.is_empty() {
         String::new()
-    } else if alpha.chars().count() == 1 {
+    } else if alpha.chars().count() == 1 || (alpha.starts_with('(') && alpha.ends_with(')')) {
         format!("{alpha}*")
     } else {
         format!("({alpha})*")
@@ -254,6 +254,13 @@ mod tests {
         assert_eq!(trace.eliminations[1].eliminated, "S");
         assert_eq!(trace.eliminations[1].resolved_equation, "S=ab*c");
         assert_eq!(trace.final_expression, "ab*c");
+    }
+
+    #[test]
+    fn converts_left_linear_numeric_grammar_to_regex() {
+        let grammar = parse_grammar("S -> S1 | S2 | S0 | ε").unwrap();
+
+        assert_eq!(to_regex(&grammar).unwrap(), "(1|2|0)*");
     }
 
     #[test]

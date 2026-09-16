@@ -108,6 +108,7 @@ pub fn animated_button(
 ) -> egui::Response {
     let id = ui.make_persistent_id(salt);
     let (rect, response) = ui.allocate_exact_size(size, egui::Sense::click());
+    let response = response.on_hover_cursor(egui::CursorIcon::PointingHand);
 
     let hover_t = ui.ctx().animate_value_with_time(
         id.with("hover"),

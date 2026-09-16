@@ -12,6 +12,27 @@ use crate::ui;
 const VIEWPORT_W: f32 = 1280.0;
 const VIEWPORT_H: f32 = 800.0;
 
+fn build_game_room(
+    state: &AppState,
+    grammar: &grammar_engine::Grammar,
+    derivation: &grammar_engine::DerivationState,
+) -> Room {
+    let (left_panel_width, right_panel_width) = match (state.show_side_panel, state.active_flow) {
+        (true, Some(GameFlow::SecretChallenge)) => (180.0, 310.0),
+        (true, _) => (340.0, 0.0),
+        (false, _) => (0.0, 0.0),
+    };
+
+    Room::build_with_panels(
+        grammar,
+        derivation,
+        screen_width(),
+        screen_height(),
+        left_panel_width,
+        right_panel_width,
+    )
+}
+
 pub async fn run() {
     let mut state = AppState::new();
     let sfx = Sfx::load().await;
@@ -22,6 +43,9 @@ pub async fn run() {
         None,
     );
     player_tex.set_filter(FilterMode::Nearest);
+    let menu_font =
+        load_ttf_font_from_bytes(include_bytes!("../assets/fonts/PressStart2P-Regular.ttf"))
+            .expect("embedded Press Start 2P font is valid");
 
     let mut current_room: Option<Room> = None;
     let mut player: Option<Player> = None;
@@ -46,16 +70,14 @@ pub async fn run() {
 
         clear_background(Color::from_rgba(10, 7, 18, 255));
 
+        let mut should_quit = false;
         if is_key_pressed(KeyCode::Escape) {
-            match state.mode {
-                ScreenMode::Laboratory => break,
-                ScreenMode::Playing | ScreenMode::Won => {
-                    state.back_to_lab();
-                }
-            }
+            state.handle_escape();
         }
 
-        if is_key_pressed(KeyCode::Tab) && state.mode != ScreenMode::Laboratory {
+        if is_key_pressed(KeyCode::Tab)
+            && matches!(state.mode, ScreenMode::Playing | ScreenMode::Won)
+        {
             state.show_side_panel = !state.show_side_panel;
         }
 
@@ -68,6 +90,44 @@ pub async fn run() {
         }
 
         match state.mode {
+            ScreenMode::MainMenu => {
+                match ui::main_menu::show_main_menu(&state, &menu_font, &ambient_dust, global_timer)
+                {
+                    ui::main_menu::MainMenuAction::OpenModeChoice => {
+                        sfx.play_click(state.master_volume);
+                        state.open_mode_selection();
+                    }
+                    ui::main_menu::MainMenuAction::SelectMode(play_mode) => {
+                        sfx.play_click(state.master_volume);
+                        state.select_play_mode(play_mode);
+                    }
+                    ui::main_menu::MainMenuAction::OpenOptions => {
+                        sfx.play_click(state.master_volume);
+                        state.open_options();
+                    }
+                    ui::main_menu::MainMenuAction::Quit => {
+                        sfx.play_click(state.master_volume);
+                        should_quit = true;
+                    }
+                    ui::main_menu::MainMenuAction::Back => state.back_to_main_menu(),
+                    ui::main_menu::MainMenuAction::None => {}
+                }
+            }
+            ScreenMode::Options => {
+                ui::main_menu::draw_retro_background(&ambient_dust, global_timer);
+                let fullscreen_before = state.fullscreen;
+                egui_macroquad::ui(|ctx| {
+                    ui::theme::apply(ctx);
+                    if ui::options::show_options(ctx, &mut state)
+                        == ui::options::OptionsAction::Back
+                    {
+                        state.back_to_main_menu();
+                    }
+                });
+                if state.fullscreen != fullscreen_before {
+                    set_fullscreen(state.fullscreen);
+                }
+            }
             ScreenMode::Laboratory => {
                 run_laboratory_frame(
                     &mut state,
@@ -115,6 +175,9 @@ pub async fn run() {
         }
 
         egui_macroquad::draw();
+        if should_quit {
+            break;
+        }
         next_frame().await;
     }
 }
@@ -127,134 +190,41 @@ fn run_laboratory_frame(
     player: &mut Option<Player>,
     effects: &mut EffectsState,
 ) {
-    for dust in ambient_dust {
-        draw_circle(dust.x, dust.y, 1.2, Color::from_rgba(140, 100, 210, 40));
-    }
-
+    ui::main_menu::draw_retro_background(ambient_dust, get_time() as f32);
     egui_macroquad::ui(|ctx| {
         ui::theme::apply(ctx);
-        ui::side_panel::show_side_panel(ctx, state.result.as_ref());
-
-        egui::SidePanel::left("grammar_editor")
-            .default_width(360.0)
-            .frame(
-                egui::Frame::side_top_panel(&ctx.style())
-                    .fill(egui::Color32::from_rgb(14, 10, 25))
-                    .stroke(egui::Stroke::new(
-                        1.0_f32,
-                        egui::Color32::from_rgb(45, 28, 75),
-                    ))
-                    .inner_margin(egui::Margin::symmetric(20, 16)),
-            )
-            .show(ctx, |ui| match ui::editor::show_editor(ui, state) {
-                ui::editor::EditorAction::PlayFreeMaze => {
-                    sfx.play_click();
-                    if state.start_free_maze().is_ok()
-                        && let (Some(g), Some(s)) =
-                            (&state.current_grammar, &state.derivation_state)
-                    {
-                        let room = Room::build(g, s, VIEWPORT_W, VIEWPORT_H);
-                        *player = Some(Player::new(room.spawn_pos));
-                        *current_room = Some(room);
-                        effects.clear();
-                    }
+        match ui::laboratory::show_laboratory(ctx, state) {
+            ui::laboratory::LaboratoryAction::PlayFree => {
+                sfx.play_click(state.master_volume);
+                if state.start_free_maze().is_ok()
+                    && let (Some(g), Some(s)) = (&state.current_grammar, &state.derivation_state)
+                {
+                    let room = build_game_room(state, g, s);
+                    *player = Some(Player::new(room.spawn_pos));
+                    *current_room = Some(room);
+                    effects.clear();
                 }
-                ui::editor::EditorAction::PlayDifficultyMaze => {
-                    sfx.play_click();
-                    if state.start_difficulty_maze().is_ok()
-                        && let (Some(g), Some(s)) =
-                            (&state.current_grammar, &state.derivation_state)
-                    {
-                        let room = Room::build(g, s, VIEWPORT_W, VIEWPORT_H);
-                        *player = Some(Player::new(room.spawn_pos));
-                        *current_room = Some(room);
-                        effects.clear();
-                    }
+            }
+            ui::laboratory::LaboratoryAction::PlayEnigma => {
+                sfx.play_click(state.master_volume);
+                if state.start_difficulty_maze().is_ok()
+                    && let (Some(g), Some(s)) = (&state.current_grammar, &state.derivation_state)
+                {
+                    let room = build_game_room(state, g, s);
+                    *player = Some(Player::new(room.spawn_pos));
+                    *current_room = Some(room);
+                    effects.clear();
                 }
-                ui::editor::EditorAction::Generate => {
-                    sfx.play_click();
-                    state.generate();
+            }
+            ui::laboratory::LaboratoryAction::Generate => {
+                sfx.play_click(state.master_volume);
+                state.generate();
+                if state.result.is_some() {
+                    state.open_laboratory_stage(crate::state::LaboratoryStage::FormalResult);
                 }
-                ui::editor::EditorAction::None => {}
-            });
-
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.add_space(8.0);
-            ui.horizontal(|ui| {
-                ui.label(
-                    egui::RichText::new("GRAMMAR QUEST")
-                        .color(egui::Color32::from_rgb(0, 240, 255))
-                        .size(16.0)
-                        .strong(),
-                );
-                ui.separator();
-                ui.label(
-                    egui::RichText::new("PAINEL DE ANÁLISE FORMAL")
-                        .color(egui::Color32::from_rgb(192, 132, 252))
-                        .size(12.0),
-                );
-            });
-            ui.separator();
-            ui.add_space(6.0);
-
-            // A permanent telemetry strip instead of dead canvas:
-            // register-style readout of the grammar the engine
-            // actually parsed, always current, never decorative.
-            ui.horizontal(|ui| {
-                if let Some(overview) = &state.grammar_preview {
-                    let count = |set: &str| {
-                        let inner = set.trim_matches(['{', '}']);
-                        if inner.is_empty() {
-                            0
-                        } else {
-                            inner.split(',').count()
-                        }
-                    };
-                    ui.monospace(
-                        egui::RichText::new(format!(
-                            "N:{}  T:{}  P:{}  S:{}",
-                            count(&overview.non_terminals),
-                            count(&overview.terminals),
-                            overview.production_count,
-                            overview.start
-                        ))
-                        .color(egui::Color32::from_rgb(160, 140, 200))
-                        .size(11.0),
-                    );
-                }
-                let (regular_text, regular_color) = match state.grammar_is_regular {
-                    Some(true) => ("REGULAR: SIM", egui::Color32::from_rgb(52, 255, 180)),
-                    Some(false) => ("REGULAR: NÃO", egui::Color32::from_rgb(255, 140, 165)),
-                    None => ("REGULAR: —", egui::Color32::from_rgb(140, 120, 180)),
-                };
-                ui.monospace(
-                    egui::RichText::new(regular_text)
-                        .color(regular_color)
-                        .size(11.0)
-                        .strong(),
-                );
-            });
-            ui.add_space(4.0);
-            ui.separator();
-
-            // The result card is short relative to the window, so
-            // center it in the remaining space instead of letting
-            // it strand near the top with a dead void below (the
-            // "operate" surface should read as a filled console,
-            // not an empty one). Height is measured a frame late
-            // via egui's temp-memory pattern; the lag is
-            // imperceptible since this content is static per
-            // state change, not animating every frame.
-            let height_id = egui::Id::new("lab_result_block_height");
-            let remembered_height = ui.data(|d| d.get_temp::<f32>(height_id)).unwrap_or(0.0);
-            let top_pad = ((ui.available_height() - remembered_height) / 2.0).max(24.0);
-            ui.add_space(top_pad);
-
-            let response = ui.vertical_centered(|ui| {
-                ui::side_panel::show_result(ui, state.result.as_ref());
-            });
-            ui.data_mut(|d| d.insert_temp(height_id, response.response.rect.height()));
-        });
+            }
+            ui::laboratory::LaboratoryAction::None => {}
+        }
     });
 }
 
@@ -284,14 +254,14 @@ fn run_playing_hud(
 
         match ui::game_hud::show_hud(ctx, state) {
             ui::game_hud::HudAction::BackToLab => {
-                sfx.play_click();
+                sfx.play_click(state.master_volume);
                 state.back_to_lab();
             }
             ui::game_hud::HudAction::PlayAgain => {
-                sfx.play_click();
+                sfx.play_click(state.master_volume);
                 state.reset_maze();
                 if let (Some(g), Some(s)) = (&state.current_grammar, &state.derivation_state) {
-                    let room = Room::build(g, s, VIEWPORT_W, VIEWPORT_H);
+                    let room = build_game_room(state, g, s);
                     if let Some(plyr) = player {
                         plyr.pos = room.spawn_pos;
                     }

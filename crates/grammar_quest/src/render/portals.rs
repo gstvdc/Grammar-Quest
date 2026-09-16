@@ -3,6 +3,10 @@ use macroquad::prelude::*;
 use crate::maze::{DoorKind, Room};
 use crate::player::Player;
 
+fn portal_label(label: &str) -> String {
+    label.replace('→', "->").replace('ε', "E")
+}
+
 /// Draws every door's threshold, frame, side pylons, light beam, overhead
 /// marquee, and (when the player is close enough) the "enter" prompt.
 /// `global_timer` drives the scanline and beam animation.
@@ -92,7 +96,7 @@ pub fn draw_doors(room: &Room, player: Option<&Player>, global_timer: f32) {
         let sign_w = door.rect.w;
         let base_font_size = if is_exit { 14 } else { 17 };
         // Macroquad's built-in ProggyClean font lacks the Unicode arrow glyph.
-        let display_label = door.label.replace('→', "->");
+        let display_label = portal_label(&door.label);
         let measured = measure_text(&display_label, None, base_font_size, 1.0);
         let font_size = (base_font_size as f32
             * ((sign_w - 16.0) / measured.width.max(1.0)).min(1.0))
@@ -141,5 +145,15 @@ pub fn draw_doors(room: &Room, player: Option<&Player>, global_timer: f32) {
                 );
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::portal_label;
+
+    #[test]
+    fn production_label_uses_an_ascii_e_for_epsilon_portals() {
+        assert_eq!(portal_label("S → ε"), "S -> E");
     }
 }
