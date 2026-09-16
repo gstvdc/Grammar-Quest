@@ -96,6 +96,16 @@ This builds a release binary, generates `AppIcon.icns` from
 bundle at `dist/Grammar Quest.app`. Re-run it after moving or deleting the
 existing bundle — the script refuses to overwrite one in place.
 
+To create a Finder installer image with an `Applications` shortcut for
+drag-and-drop installation, run the following after building the app:
+
+```bash
+scripts/build-macos-dmg.sh
+```
+
+It creates `dist/Grammar-Quest-v0.1.0-macos.dmg` and likewise refuses to
+overwrite an existing image.
+
 ### macOS note
 
 In the current automation environment, the binary aborted inside
