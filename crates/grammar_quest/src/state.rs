@@ -151,9 +151,7 @@ struct StackAnimation {
 
 const STACK_ANIMATION_SECONDS: f32 = 0.30;
 const SECRET_CHECKPOINT_INTERVAL: usize = 5;
-/// How long a wrong-door collision suppresses further door checks, so
-/// standing on the same door's rect doesn't repeat the restart penalty
-/// every frame (see docs/tasks/2026-09-15-audit-adjustments.md, T4).
+/// How long a wrong-door collision suppresses further door checks.
 const WRONG_DOOR_COOLDOWN_SECONDS: f32 = 0.6;
 
 pub struct AppState {
@@ -280,10 +278,9 @@ impl AppState {
         }
     }
 
-    /// Keeps the `G={N,T,P,S}` card live as the grammar text is edited,
-    /// independent of regularity/derivation validity (see
-    /// docs/tasks/2026-09-15-audit-adjustments.md, T1): any parseable
-    /// grammar has an `N/T/P/S` projection even if it can't be played.
+    /// Keeps the `G={N,T,P,S}` card live as the grammar text is edited. Any
+    /// parseable grammar has an `N/T/P/S` projection even if it can't be
+    /// played.
     fn refresh_grammar_preview(&mut self) {
         let parsed = parse_grammar(&self.grammar_text).ok();
         self.grammar_is_regular = parsed.as_ref().map(|g| validate_regular(g).is_ok());
@@ -318,9 +315,8 @@ impl AppState {
             validate_regular(&grammar)?;
             // A regular-but-unproductive grammar (e.g. "S -> aB\nB -> aB") is
             // still valid per validate_regular, but has no derivable sentence.
-            // Reuse derive_random's own failure signal instead of building a
-            // dedicated productive-non-terminals analysis (out of scope, see
-            // docs/tasks/2026-09-15-audit-adjustments.md, T2/T6).
+            // Reuse derive_random's own failure signal instead of duplicating
+            // productive-non-terminal analysis in the application crate.
             derive_random(&grammar)?;
             let regex_trace = to_regex_trace(&grammar)?;
             Ok((grammar, regex_trace))
@@ -762,9 +758,7 @@ mod tests {
     #[test]
     fn start_free_maze_fails_on_an_unproductive_grammar() {
         // Regular per validate_regular (right-linear), but B never reaches a
-        // terminal-only alternative: no sentence is derivable. Before the T2
-        // fix this silently reached ScreenMode::Playing with a discarded
-        // regex-trace failure (see docs/tasks/2026-09-15-audit-adjustments.md).
+        // terminal-only alternative: no sentence is derivable.
         let mut state = AppState::new();
         state.select_play_mode(PlayMode::Free);
         state.set_grammar_text("S -> aB\nB -> aB".to_string());

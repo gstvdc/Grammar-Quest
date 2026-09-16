@@ -11,10 +11,9 @@ struct Term {
 
 type Equation = Vec<Term>;
 
-/// One non-terminal eliminated via Arden's rule, in elimination order, so
-/// the UI can reproduce the professor's equation-by-equation walkthrough
-/// (see docs/audits/2026-09-15-project-audit.md) instead of only the final
-/// regex.
+/// One non-terminal eliminated via Arden's rule, in elimination order, so the
+/// UI can reproduce the equation-by-equation walkthrough instead of only the
+/// final regex.
 #[derive(Debug, Clone, PartialEq)]
 pub struct EliminationStep {
     pub eliminated: String,

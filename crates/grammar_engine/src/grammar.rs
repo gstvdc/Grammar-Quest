@@ -12,10 +12,9 @@ pub struct Grammar {
     pub start: String,
 }
 
-/// Human-readable projection of `G={N,T,P,S}` (see AGENTS.md requirement 1
-/// and docs/tasks/2026-09-15-audit-adjustments.md, T1), so the UI can show
-/// the four components literally instead of leaving the grader to infer
-/// them from the raw production text.
+/// Human-readable projection of `G={N,T,P,S}` so the UI can show the four
+/// components literally instead of leaving the reader to infer them from raw
+/// production text.
 #[derive(Debug, Clone, PartialEq)]
 pub struct GrammarOverview {
     pub non_terminals: String,

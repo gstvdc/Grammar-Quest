@@ -1,27 +1,25 @@
 use crate::state::{AppState, PanelResult};
+use crate::ui::theme::{RETRO_GOLD as GOLD, RETRO_PARCHMENT as PARCHMENT, RETRO_PLUM as PLUM};
 
 pub fn show_result(ui: &mut egui::Ui, result: Option<&PanelResult>) {
     if let Some(result) = result {
         egui::Frame::NONE
             .fill(egui::Color32::from_rgb(20, 13, 36))
-            .stroke(egui::Stroke::new(
-                2.0_f32,
-                egui::Color32::from_rgb(255, 206, 97),
-            ))
+            .stroke(egui::Stroke::new(2.0_f32, GOLD))
             .corner_radius(egui::CornerRadius::same(2))
             .inner_margin(egui::Margin::same(22))
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.label(
                         egui::RichText::new("✓ DERIVAÇÃO CONCLUÍDA")
-                            .color(egui::Color32::from_rgb(255, 206, 97))
+                            .color(GOLD)
                             .strong()
                             .size(13.0),
                     );
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         ui.label(
                             egui::RichText::new(format!("{} passos aplicados", result.steps.len()))
-                                .color(egui::Color32::from_rgb(255, 230, 158))
+                                .color(PARCHMENT)
                                 .size(12.0),
                         );
                     });
@@ -42,7 +40,7 @@ pub fn show_result(ui: &mut egui::Ui, result: Option<&PanelResult>) {
                     "EXPRESSÃO REGULAR",
                     &crate::ui::display_regex(&result.regex),
                     22.0,
-                    egui::Color32::from_rgb(255, 230, 158),
+                    PARCHMENT,
                 );
 
                 ui.add_space(14.0);
@@ -103,10 +101,7 @@ pub fn show_result(ui: &mut egui::Ui, result: Option<&PanelResult>) {
 fn result_value_card(ui: &mut egui::Ui, label: &str, value: &str, size: f32, color: egui::Color32) {
     egui::Frame::NONE
         .fill(egui::Color32::from_rgb(12, 8, 24))
-        .stroke(egui::Stroke::new(
-            1.0_f32,
-            egui::Color32::from_rgb(255, 206, 97),
-        ))
+        .stroke(egui::Stroke::new(1.0_f32, GOLD))
         .corner_radius(egui::CornerRadius::same(2))
         .inner_margin(egui::Margin::symmetric(16, 12))
         .show(ui, |ui| {
@@ -121,9 +116,8 @@ fn result_value_card(ui: &mut egui::Ui, label: &str, value: &str, size: f32, col
         });
 }
 
-/// Renders the professor's equation-elimination walkthrough (see
-/// docs/audits/2026-09-15-project-audit.md, T3) behind a collapsible
-/// header so the final regex above stays the headline result.
+/// Renders the equation-elimination walkthrough behind a collapsible header
+/// so the final regex above stays the headline result.
 fn show_regex_trace(ui: &mut egui::Ui, trace: &grammar_engine::RegexTrace) {
     if trace.initial_equations.is_empty() {
         return;
@@ -178,10 +172,10 @@ pub fn show_side_panel(ctx: &egui::Context, result: Option<&PanelResult>) {
         .default_width(320.0)
         .frame(
             egui::Frame::side_top_panel(&ctx.style())
-                .fill(egui::Color32::from_rgb(45, 27, 78))
+                .fill(PLUM)
                 .stroke(egui::Stroke::new(
                     1.0_f32,
-                    egui::Color32::from_rgb(255, 206, 97),
+                    GOLD,
                 ))
                 .inner_margin(egui::Margin::symmetric(16, 14)),
         )

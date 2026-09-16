@@ -2,11 +2,10 @@ use grammar_engine::EXAMPLE_SOURCES;
 
 use crate::state::{AppState, Difficulty, LaboratoryStage, PlayMode};
 use crate::ui::side_panel;
-
-const PLUM: egui::Color32 = egui::Color32::from_rgb(45, 27, 78);
-const GOLD: egui::Color32 = egui::Color32::from_rgb(255, 206, 97);
-const RED: egui::Color32 = egui::Color32::from_rgb(148, 33, 51);
-const PARCHMENT: egui::Color32 = egui::Color32::from_rgb(255, 230, 158);
+use crate::ui::theme::{
+    RETRO_GOLD as GOLD, RETRO_PARCHMENT as PARCHMENT, RETRO_PLUM as PLUM, RETRO_RED as RED,
+    retro_panel,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LaboratoryAction {
@@ -26,21 +25,12 @@ pub fn show_laboratory(ctx: &egui::Context, state: &mut AppState) -> LaboratoryA
         )
         .show(ctx, |ui| {
             ui.vertical_centered(|ui| {
-                egui::Frame::NONE
-                    .fill(PLUM)
-                    .stroke(egui::Stroke::new(3.0_f32, GOLD))
-                    .shadow(egui::epaint::Shadow {
-                        offset: [6, 6],
-                        blur: 0,
-                        spread: 0,
-                        color: RED,
-                    })
-                    .corner_radius(egui::CornerRadius::same(4))
-                    .inner_margin(egui::Margin::symmetric(54, 38))
-                    .show(ui, |ui| match state.play_mode {
+                retro_panel(ui, egui::Margin::symmetric(54, 38), |ui| {
+                    match state.play_mode {
                         PlayMode::Free => show_free(ui, state, &mut action),
                         PlayMode::Enigma => show_enigma(ui, state, &mut action),
-                    });
+                    }
+                });
             });
         });
     action

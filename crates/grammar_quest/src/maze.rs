@@ -1,9 +1,7 @@
 use grammar_engine::{DerivationState, Grammar};
 use macroquad::prelude::*;
 
-/// Every door a player can walk into is exactly one of these — no other
-/// representation coexists (see docs/tasks/2026-09-15-audit-adjustments.md,
-/// T4: this replaces a `bool is_exit` field).
+/// Every door a player can walk into is exactly one of these.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DoorKind {
     /// Applies `choice_index` as a production choice via `apply_maze_choice`.

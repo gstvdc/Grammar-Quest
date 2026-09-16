@@ -39,9 +39,6 @@ O painel de UI (pilha / derivação / regex) construído na Fase 1 é
 reaproveitado dentro do labirinto na Fase 2 — não duplicar essa lógica de
 apresentação entre telas.
 
-Ver `ROADMAP.md` para as fases e `docs/superpowers/specs/` para a spec de
-design completa.
-
 ## Comandos
 
 ```bash

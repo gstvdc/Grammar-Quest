@@ -47,9 +47,8 @@ pub fn update_playing(
         return;
     }
 
-    // Standing on a wrong door's rect fires this every frame; without a
-    // cooldown a single touch would restart the secret route repeatedly
-    // (see docs/tasks/2026-09-15-audit-adjustments.md, T4).
+    // Standing on a wrong door's rect fires this every frame; the cooldown
+    // prevents a single touch from restarting the secret route repeatedly.
     if state.door_cooldown_active() {
         return;
     }

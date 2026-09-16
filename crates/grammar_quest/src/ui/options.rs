@@ -1,11 +1,10 @@
 use crate::state::AppState;
-use crate::ui::theme::animated_button;
+use crate::ui::theme::{
+    RETRO_GOLD as GOLD, RETRO_PARCHMENT as PARCHMENT, RETRO_PLUM as PLUM, RETRO_RED as RED,
+    animated_button, retro_panel,
+};
 
 const ATTRIBUTION: &str = include_str!("../../assets/ATTRIBUTION.md");
-const PLUM: egui::Color32 = egui::Color32::from_rgb(45, 27, 78);
-const GOLD: egui::Color32 = egui::Color32::from_rgb(255, 206, 97);
-const RED: egui::Color32 = egui::Color32::from_rgb(148, 33, 51);
-const PARCHMENT: egui::Color32 = egui::Color32::from_rgb(255, 230, 158);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OptionsAction {
@@ -23,58 +22,47 @@ pub fn show_options(ctx: &egui::Context, state: &mut AppState) -> OptionsAction 
         )
         .show(ctx, |ui| {
             ui.vertical_centered(|ui| {
-                egui::Frame::NONE
-                    .fill(PLUM)
-                    .stroke(egui::Stroke::new(3.0_f32, GOLD))
-                    .shadow(egui::epaint::Shadow {
-                        offset: [6, 6],
-                        blur: 0,
-                        spread: 0,
-                        color: RED,
-                    })
-                    .corner_radius(egui::CornerRadius::same(4))
-                    .inner_margin(egui::Margin::symmetric(46, 34))
-                    .show(ui, |ui| {
-                        ui.set_width(520.0);
-                        ui.vertical_centered(|ui| {
-                            ui.label(
-                                egui::RichText::new("OPÇÕES")
-                                    .size(26.0)
-                                    .strong()
-                                    .color(GOLD),
-                            );
-                            ui.add_space(8.0);
-                            ui.label(
-                                egui::RichText::new("Ajuste sua jornada")
-                                    .size(13.0)
-                                    .color(PARCHMENT),
-                            );
-                        });
-                        ui.add_space(24.0);
-
-                        section_card(ui, |ui| show_volume(ui, state));
-                        ui.add_space(14.0);
-                        section_card(ui, |ui| show_display(ui, state));
-                        ui.add_space(14.0);
-                        section_card(ui, show_credits);
-
-                        ui.add_space(22.0);
-                        ui.vertical_centered(|ui| {
-                            if animated_button(
-                                ui,
-                                "options_back",
-                                egui::vec2(300.0, 42.0),
-                                "← VOLTAR",
-                                14.0,
-                                PARCHMENT,
-                                egui::Color32::from_rgb(35, 22, 60),
-                            )
-                            .clicked()
-                            {
-                                action = OptionsAction::Back;
-                            }
-                        });
+                retro_panel(ui, egui::Margin::symmetric(46, 34), |ui| {
+                    ui.set_width(520.0);
+                    ui.vertical_centered(|ui| {
+                        ui.label(
+                            egui::RichText::new("OPÇÕES")
+                                .size(26.0)
+                                .strong()
+                                .color(GOLD),
+                        );
+                        ui.add_space(8.0);
+                        ui.label(
+                            egui::RichText::new("Ajuste sua jornada")
+                                .size(13.0)
+                                .color(PARCHMENT),
+                        );
                     });
+                    ui.add_space(24.0);
+
+                    section_card(ui, |ui| show_volume(ui, state));
+                    ui.add_space(14.0);
+                    section_card(ui, |ui| show_display(ui, state));
+                    ui.add_space(14.0);
+                    section_card(ui, show_credits);
+
+                    ui.add_space(22.0);
+                    ui.vertical_centered(|ui| {
+                        if animated_button(
+                            ui,
+                            "options_back",
+                            egui::vec2(300.0, 42.0),
+                            "← VOLTAR",
+                            14.0,
+                            PARCHMENT,
+                            egui::Color32::from_rgb(35, 22, 60),
+                        )
+                        .clicked()
+                        {
+                            action = OptionsAction::Back;
+                        }
+                    });
+                });
             });
         });
     action

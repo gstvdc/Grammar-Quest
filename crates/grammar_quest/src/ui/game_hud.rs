@@ -1,5 +1,7 @@
 use crate::state::{AppState, GameFlow, ScreenMode};
-use crate::ui::theme::animated_button;
+use crate::ui::theme::{
+    RETRO_GOLD as GOLD, RETRO_PARCHMENT as PARCHMENT, RETRO_PLUM as PLUM, animated_button,
+};
 use grammar_engine::Symbol;
 
 pub enum HudAction {
@@ -15,11 +17,13 @@ pub fn show_hud(ctx: &egui::Context, state: &mut AppState) -> HudAction {
     egui::TopBottomPanel::top("maze_hud_bar")
         .frame(
             egui::Frame::side_top_panel(&ctx.style())
-                .fill(egui::Color32::from_rgba_premultiplied(45, 27, 78, 245))
-                .stroke(egui::Stroke::new(
-                    1.0_f32,
-                    egui::Color32::from_rgb(255, 206, 97),
+                .fill(egui::Color32::from_rgba_premultiplied(
+                    PLUM.r(),
+                    PLUM.g(),
+                    PLUM.b(),
+                    245,
                 ))
+                .stroke(egui::Stroke::new(1.0_f32, GOLD))
                 .inner_margin(egui::Margin::symmetric(16, 10)),
         )
         .show(ctx, |ui| {
@@ -28,13 +32,13 @@ pub fn show_hud(ctx: &egui::Context, state: &mut AppState) -> HudAction {
                 ui.horizontal(|ui| {
                     ui.label(
                         egui::RichText::new("GRAMMAR QUEST")
-                            .color(egui::Color32::from_rgb(255, 206, 97))
+                            .color(GOLD)
                             .strong()
                             .size(15.0),
                     );
                     ui.label(
                         egui::RichText::new("LABIRINTO 2D")
-                            .color(egui::Color32::from_rgb(255, 230, 158))
+                            .color(PARCHMENT)
                             .size(11.0),
                     );
                 });
@@ -47,7 +51,7 @@ pub fn show_hud(ctx: &egui::Context, state: &mut AppState) -> HudAction {
                     Some(GameFlow::Free) => {
                         ui.label(
                             egui::RichText::new("LABIRINTO LIVRE · DERIVAÇÃO POR PILHA")
-                                .color(egui::Color32::from_rgb(255, 230, 158))
+                                .color(PARCHMENT)
                                 .size(11.0)
                                 .strong(),
                         );
@@ -84,7 +88,7 @@ pub fn show_hud(ctx: &egui::Context, state: &mut AppState) -> HudAction {
                         "← Preparação [Esc]",
                         12.0,
                         egui::Color32::from_rgb(26, 15, 46),
-                        egui::Color32::from_rgb(255, 206, 97),
+                        GOLD,
                     )
                     .clicked()
                     {

@@ -16,9 +16,9 @@ pub struct DerivationStep {
     pub output_so_far: String,
 }
 
-/// One observable moment of the professor's stack algorithm, in the exact
-/// order it happens, so the UI can replay it without re-deriving instants
-/// from `DerivationStep` snapshots (see docs/audits/2026-09-15-project-audit.md).
+/// One observable moment of the stack algorithm, in the exact order it
+/// happens, so the UI can replay it without re-deriving instants from
+/// `DerivationStep` snapshots.
 #[derive(Debug, Clone, PartialEq)]
 pub enum DerivationEvent {
     ProductionChosen {

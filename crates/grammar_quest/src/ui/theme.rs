@@ -1,3 +1,8 @@
+pub const RETRO_PLUM: egui::Color32 = egui::Color32::from_rgb(45, 27, 78);
+pub const RETRO_GOLD: egui::Color32 = egui::Color32::from_rgb(255, 206, 97);
+pub const RETRO_RED: egui::Color32 = egui::Color32::from_rgb(148, 33, 51);
+pub const RETRO_PARCHMENT: egui::Color32 = egui::Color32::from_rgb(255, 230, 158);
+
 /// The "Derivation Terminal" identity treats every piece of UI text as
 /// instrument readout, not prose — so there is deliberately one voice
 /// (a technical monospace) for both display and body text, not a
@@ -168,4 +173,23 @@ pub fn animated_button(
     }
 
     response
+}
+
+pub fn retro_panel(
+    ui: &mut egui::Ui,
+    inner_margin: egui::Margin,
+    add_contents: impl FnOnce(&mut egui::Ui),
+) {
+    egui::Frame::NONE
+        .fill(RETRO_PLUM)
+        .stroke(egui::Stroke::new(3.0_f32, RETRO_GOLD))
+        .shadow(egui::epaint::Shadow {
+            offset: [6, 6],
+            blur: 0,
+            spread: 0,
+            color: RETRO_RED,
+        })
+        .corner_radius(egui::CornerRadius::same(4))
+        .inner_margin(inner_margin)
+        .show(ui, add_contents);
 }
