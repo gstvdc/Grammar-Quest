@@ -72,7 +72,8 @@ aviso na primeira abertura.
 ## Documentação técnica
 
 Veja [`docs/technical.md`](docs/technical.md) para a arquitetura e a estrutura
-dos pacotes. As licenças dos recursos estão em
+dos pacotes e [`docs/grammar-quest-project-overview.pdf`](docs/grammar-quest-project-overview.pdf)
+para uma apresentação visual do projeto. As licenças dos recursos estão em
 [`crates/grammar_quest/assets/ATTRIBUTION.md`](crates/grammar_quest/assets/ATTRIBUTION.md).
 
 ---
