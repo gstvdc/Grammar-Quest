@@ -192,7 +192,7 @@ pub fn show_hud(ctx: &egui::Context, state: &mut AppState) -> HudAction {
                                             .color(egui::Color32::from_rgb(160, 140, 200)),
                                     );
                                     ui.monospace(
-                                        egui::RichText::new(&res.regex)
+                                        egui::RichText::new(crate::ui::display_regex(&res.regex))
                                             .size(16.0)
                                             .color(egui::Color32::from_rgb(238, 166, 255))
                                             .strong(),

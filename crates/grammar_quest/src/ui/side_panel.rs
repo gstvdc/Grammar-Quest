@@ -40,7 +40,7 @@ pub fn show_result(ui: &mut egui::Ui, result: Option<&PanelResult>) {
                 result_value_card(
                     ui,
                     "EXPRESSÃO REGULAR",
-                    &result.regex,
+                    &crate::ui::display_regex(&result.regex),
                     22.0,
                     egui::Color32::from_rgb(255, 230, 158),
                 );
