@@ -24,7 +24,7 @@ pub enum MainMenuAction {
 pub fn show_main_menu(state: &AppState, font: &Font, sparks: &[Vec2], time: f32) -> MainMenuAction {
     miniquad::window::set_mouse_cursor(miniquad::CursorIcon::Default);
     draw_retro_background(sparks, time);
-    draw_title(font);
+    draw_title(font, time);
 
     match state.menu_stage {
         MainMenuStage::Root => show_root_actions(font),
@@ -68,12 +68,43 @@ pub fn draw_retro_background(sparks: &[Vec2], time: f32) {
     );
 }
 
-fn draw_title(font: &Font) {
+fn draw_title(font: &Font, time: f32) {
     let center_x = screen_width() / 2.0;
-    centered_text("GRAMMAR", center_x + 6.0, 241.0, 44, RED, font);
-    centered_text("GRAMMAR", center_x, 235.0, 44, GOLD, font);
-    centered_text("QUEST", center_x + 6.0, 299.0, 44, RED, font);
-    centered_text("QUEST", center_x, 293.0, 44, GOLD, font);
+    let pulse = (time * 2.4).sin();
+    let title_size = (44.0 * title_scale_at(time)).round() as u16;
+    let title_lift = pulse * 2.0;
+    centered_text(
+        "GRAMMAR",
+        center_x + 6.0,
+        241.0 - title_lift,
+        title_size,
+        RED,
+        font,
+    );
+    centered_text(
+        "GRAMMAR",
+        center_x,
+        235.0 - title_lift,
+        title_size,
+        GOLD,
+        font,
+    );
+    centered_text(
+        "QUEST",
+        center_x + 6.0,
+        299.0 - title_lift,
+        title_size,
+        RED,
+        font,
+    );
+    centered_text(
+        "QUEST",
+        center_x,
+        293.0 - title_lift,
+        title_size,
+        GOLD,
+        font,
+    );
     centered_text(
         "A aventura das gramáticas regulares",
         center_x,
@@ -82,6 +113,10 @@ fn draw_title(font: &Font) {
         PARCHMENT,
         font,
     );
+}
+
+fn title_scale_at(time: f32) -> f32 {
+    1.0 + (time * 2.4).sin() * 0.035
 }
 
 fn show_root_actions(font: &Font) -> MainMenuAction {
@@ -181,4 +216,19 @@ fn blend(start: Color, end: Color, progress: f32) -> Color {
         start.b + (end.b - start.b) * t,
         1.0,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn title_pulse_stays_subtle_and_reaches_its_peak() {
+        let resting = title_scale_at(0.0);
+        let peak = title_scale_at(std::f32::consts::FRAC_PI_2 / 2.4);
+
+        assert_eq!(resting, 1.0);
+        assert!(peak > resting);
+        assert!(peak <= 1.04);
+    }
 }
