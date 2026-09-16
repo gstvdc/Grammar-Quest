@@ -35,6 +35,11 @@ iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
 cargo build --release -p grammar_quest
 cp "$BIN" "$APP/Contents/MacOS/grammar_quest"
 cp "$PLIST" "$APP/Contents/Info.plist"
+mkdir -p "$APP/Contents/Resources/Licenses"
+cp "$ROOT_DIR/crates/grammar_quest/assets/fonts/OFL.txt" \
+    "$APP/Contents/Resources/Licenses/PressStart2P-OFL.txt"
+cp "$ROOT_DIR/crates/grammar_quest/assets/ATTRIBUTION.md" \
+    "$APP/Contents/Resources/Licenses/ATTRIBUTION.md"
 
 rm -rf "$ICONSET"
 echo "Created $APP"
