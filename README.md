@@ -1,13 +1,9 @@
 <p align="center">
-  <img src="crates/grammar_quest/assets/brand/grammar-quest-logo.png" alt="Logo do Grammar Quest" width="180">
+  <img src="docs/images/grammar-quest-logo.png" alt="Grammar Quest — A aventura das gramáticas regulares" width="880">
 </p>
 
-<h1 align="center">Grammar Quest</h1>
-
-<p align="center">A aventura pixelada das gramáticas regulares.</p>
-
 <p align="center">
-  <img src="docs/images/main-menu.png" alt="Tela inicial do Grammar Quest" width="960">
+  <img src="docs/images/gameplay.png" alt="Labirinto 2D do Grammar Quest com trilha formal e pilha" width="960">
 </p>
 
 Grammar Quest é o Trabalho de Desenvolvimento da disciplina Linguagens Formais
